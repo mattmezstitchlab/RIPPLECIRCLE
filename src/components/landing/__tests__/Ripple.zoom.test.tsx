@@ -15,7 +15,7 @@
  * Click→viewBox interaction arithmetic is covered by the pure-function tests
  * in src/utils/__tests__/viewTransform.test.ts.
  */
-import { describe, expect, it, beforeAll } from 'vitest';
+import { describe, expect, it, beforeAll, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -58,6 +58,7 @@ beforeAll(() => {
 });
 
 describe('Ripple zoom regression safeguards', () => {
+  beforeEach(() => { window.location.hash = '#explore'; });
   it('renders the main SVG at exactly 1× framing initially (full circle visible)', () => {
     const { container } = render(<App />);
     // role="application" is on the container div; the Ripple SVG inside it has

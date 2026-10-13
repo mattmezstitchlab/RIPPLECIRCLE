@@ -80,7 +80,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
           onClick={onBackToRipple}
           className="pressable h-9 px-4 rounded-[9px] bg-[#1d1d1f] text-white text-[13px] font-semibold"
         >
-          Retour au Ripple
+          Retour à l’accueil
         </button>
       </header>
 

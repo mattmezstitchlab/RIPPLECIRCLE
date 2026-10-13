@@ -110,3 +110,9 @@ Aucun calcul propriétaire du noyau privé n’a été déplacé vers le dépôt
 ## V7 — Cadrage spatial et contrôles bas d’écran (prototype)
 
 Le dock fixe contient un bouton Entier/Demi/Quart, les zooms +/- et un panneau secondaire (volume, relations, recentrage). Le clic répété sur ce bouton fait tourner les vues ; un double-clic sur le cadran choisit le secteur à cadrer. Les trois vues n'envoient rien et n'altèrent pas les données. Voir `docs/V7-NOVELTY-UX-AUDIT.md` pour la recherche comparative et les limites.
+
+## V8 — Matt Mez Sax : une date déclenche le parcours
+Le site expérimental présente désormais Matt Mez Sax à la racine et via /#booking, avec un cercle de sélection de date (12 mois → jours). Une saisie de date native accessible est proposée en alternative. L'instrument causal existant reste accessible via /#explore.
+Après sélection, la page montre le jour, le délai restant et le statut « Disponibilité à confirmer ». Il n'y a AUCUN vrai calendrier synchronisé. Le formulaire génère seulement un courriel prérempli (date, lieu, prénom, prestation) ; rien n'est expédié automatiquement, aucune réservation effectuée.
+Le formulaire prestataires est un lien de contact. Comptes pros, disponibilité réelle, paiement, devis, contrat et mini-site des mariés ne sont pas encore implémentés.
+La V7 et la PR juridique confidentielle restent séparées. Ne pas annoncer un moteur de disponibilité temps réel.
