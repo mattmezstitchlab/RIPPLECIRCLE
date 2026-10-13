@@ -95,12 +95,16 @@ try {
       findings.push({size:size.id,kind:'v6-not-three-modes'});
     if (await page.locator('.ripple-v6-layers').getAttribute('open') !== null)
       findings.push({size:size.id,kind:'v6-layers-open-at-rest'});
+    if (await page.locator('.ripple-v6-layers .ripple-orbit-nav').isVisible())
+      findings.push({size:size.id,kind:'v6-hidden-layers-visible'});
     if (await page.locator('.ripple-v6-inspector .ripple-context-steps').count())
       findings.push({size:size.id,kind:'v6-verbose-inspector-still-shown'});
     if (await page.locator('.ripple-v6-context-details[open]').count())
       findings.push({size:size.id,kind:'v6-details-open-at-rest'});
     if (await page.locator('.ripple-v6-watch-settings[open]').count())
       findings.push({size:size.id,kind:'v6-settings-open-at-rest'});
+    if (await page.locator('.ripple-v6-watch-settings .ripple-watch-controls').isVisible())
+      findings.push({size:size.id,kind:'v6-hidden-controls-visible'});
     await page.locator('.ripple-v6-watch-settings > summary').click();
     await page.getByRole('button',{name:'Zoomer',exact:true}).click();
     await page.getByRole('button',{name:'Recentrer le cadran'}).click();
@@ -200,6 +204,7 @@ try {
     if (!page.url().includes('#account')) findings.push({size:size.id,kind:'account-failed'});
     if (await page.getByRole('button', { name:/Mode nuit|Affichage/i }).count())
       findings.push({size:size.id,kind:'night-option-still-visible'});
+    await page.getByRole('navigation',{name:'Réglages du compte'}).waitFor({state:'visible',timeout:8000});
     const accountTabs=page.getByRole('navigation',{name:'Réglages du compte'}).getByRole('button');
     if (await accountTabs.count()!==4) findings.push({size:size.id,kind:'account-tabs-invalid'});
     const tabRects = await page.locator('.account-settings-tab').evaluateAll(items =>
@@ -264,7 +269,7 @@ try {
   }
   await writeFile(OUTPUT + '/findings.json', JSON.stringify({ findings }, null, 2));
   console.log('VISUAL_FINDINGS ' + JSON.stringify(findings));
-  if (findings.some(x => ['v6-modebar-missing','v6-not-three-modes','v6-layers-open-at-rest','v6-verbose-inspector-still-shown','v6-details-open-at-rest', 'v6-settings-open-at-rest', 'console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
+  if (findings.some(x => ['v6-modebar-missing','v6-not-three-modes','v6-layers-open-at-rest','v6-verbose-inspector-still-shown','v6-details-open-at-rest', 'v6-settings-open-at-rest', 'v6-hidden-layers-visible', 'v6-hidden-controls-visible', 'console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
     process.exitCode = 1;
   }
 } finally {

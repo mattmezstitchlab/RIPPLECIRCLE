@@ -1497,3 +1497,9 @@ input[type="range"].ios-slider {
 }
 .ripple-v6-watch-settings[open] > summary {background:var(--ripple-soft,rgba(0,0,0,.04));}
 .ripple-v6-watch-settings .ripple-watch-controls {padding:5px 0 4px;margin:0;}
+
+/* Fermeture native renforcée : aucun contenu de menu ne reste hors champ mais actif. */
+.ripple-v6-layers:not([open]) > .ripple-orbit-nav,
+.ripple-v6-watch-settings:not([open]) > .ripple-watch-controls {
+  display:none !important;
+}
