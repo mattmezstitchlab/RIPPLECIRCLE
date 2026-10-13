@@ -54,3 +54,15 @@ La **régie simulée** est rangée dans un panneau repliable. La lecture d'un ex
 - **Colonne causale prioritaire** : synthèse cause → conséquences → plan B visible sans parcourir les panneaux ; sélection d'une personne ou d'un moment = informations uniques à droite.
 - **Détails secondaires repliés** : temps de régie, simulateur d'actions, liste exhaustive ; aucune de ces vues n'est nécessaire pour comprendre le premier écran.
 - **Démo explicite** : horloge de régie et causalité sont simulées, pas un événement réel.
+
+## Espace juridique confidentiel
+
+Le bouton discret **Dossier confidentiel** situé sous la synthèse causale ouvre `#confidentiel`. **Le contrôle du code d’accès et le téléchargement sont exécutés par une fonction Vercel**, pas par JavaScript côté navigateur.
+
+Aucune pièce confidentielle, code causal expérimental ni mot de passe n'est enregistré dans ce dépôt public, dans `public/` ou dans le bundle Vite. La fonction est désactivée si l'une de ces variables serveur n'est pas fournie sur Vercel :
+
+- `RIPPLE_LEGAL_SCRYPT` : sel et empreinte scrypt d'un code long et aléatoire ;
+- `RIPPLE_LEGAL_SESSION_KEY` : secret HMAC pour les cookies de session signés ;
+- `RIPPLE_LEGAL_ARCHIVE_BASE64` : archive `tar.gz` complète encodée en base64, stockée en variable d'environnement serveur **chiffrée/sensible**, jamais préfixée `VITE_`.
+
+La session dure huit heures, le cookie est HttpOnly, Secure et SameSite Strict. Les réponses sont `no-store` et `noindex`, les téléchargements exigent une session valide. Le lien seul ne donne pas accès au dossier. L'accès doit être transmis par un canal séparé et peut être révoqué par rotation du code et de la clé de session suivie d'un redéploiement. Ce dispositif ne remplace pas un espace documentaire sécurisé spécialisé ni la confidentialité professionnelle du conseil juridique.

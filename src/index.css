@@ -1141,3 +1141,12 @@ input[type="range"].ios-slider {
 }
 
 /* Pas de changement de flux DOM : les boutons restent utilisables au clavier. */
+
+/* L'accès juridique est un lien discret dans l'inspecteur, jamais dans le header. */
+.legal-entry { color: var(--ripple-muted, #515154); text-align:right; }
+.legal-entry:focus-visible { opacity:1; outline: 2px solid #0A84FF; outline-offset:3px; border-radius: 6px; }
+.legal-page { color:var(--ripple-ink,#1d1d1f); }
+.legal-login { background:var(--ripple-surface,#fff); }
+@media (max-width:1279px) {
+  .ripple-inspector > .legal-entry { order:0; width:min(100%,710px); align-self:center; }
+}

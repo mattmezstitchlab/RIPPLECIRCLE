@@ -7,6 +7,7 @@ import {
   Music2,
   Users,
   BellRing,
+  LockKeyhole,
   Network,
   Pause,
   Play,
@@ -1450,6 +1451,12 @@ export const Ripple: React.FC<RippleProps> = ({
               choose({ kind: 'moment', id: DAY_MOMENTS.find(m => m.cause)?.id ?? DAY_MOMENTS[0].id });
             }}
           />
+          <button type="button" onClick={() => { window.location.hash = 'confidentiel'; }}
+            className="legal-entry inline-flex items-center justify-end gap-1.5 px-2 py-1 text-[11px] font-semibold opacity-55 hover:opacity-100 transition-opacity"
+            aria-label="Accéder au dossier confidentiel réservé au conseil">
+            <LockKeyhole className="w-3.5 h-3.5" />
+            Dossier confidentiel
+          </button>
           {!(activeLayer === 'overview' && moment?.cause && !showIncidentDetails) && (
             <SelectionDetail
               focus={focus}
