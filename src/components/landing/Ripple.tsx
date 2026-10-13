@@ -766,7 +766,8 @@ export const Ripple: React.FC<RippleProps> = ({
           <svg
             ref={svgRef}
             viewBox={viewBoxStr}
-            className="absolute inset-0 w-full h-full overflow-visible touch-none select-none"
+            className="absolute inset-0 w-full h-full overflow-visible select-none"
+            style={{ touchAction: 'pan-y', msTouchAction: 'pan-y' }}
             aria-hidden="true"
             onPointerDown={(e) => {
               const p = angleFromEvent(e);
@@ -786,19 +787,26 @@ export const Ripple: React.FC<RippleProps> = ({
               setFocus({ kind: 'person', id: nearestPerson(p.a) });
             }}
             onWheel={(e) => {
-              // Wheel zoom (and pinch via ctrlKey wheel).
-              if (e.ctrlKey || e.metaKey || Math.abs(e.deltaY) > 2) {
-                e.preventDefault();
-                const factor = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
-                // Anchor zoom at event location.
-                const r = svgRef.current?.getBoundingClientRect();
-                if (r) {
-                  const cx = ((e.clientX - r.left) / r.width - 0.5) * (SIZE + 60);
-                  const cy = ((e.clientY - r.top) / r.height - 0.5) * (SIZE + 60);
-                  handleZoom(factor, cx, cy);
-                } else {
-                  handleZoom(factor);
-                }
+              // Zoom roue/pinch UNIQUEMENT quand Ctrl ou Cmd est enfoncé
+              // (ce qui correspond au geste standard "pincer" du trackpad,
+              // signalé par les navigateurs comme wheel+ctrlKey).
+              // Un défilement trackpad normal NE DOIT PAS zoomer et doit
+              // laisser la page défiler — aucun preventDefault dans ce cas.
+              if (!(e.ctrlKey || e.metaKey)) return;
+              e.preventDefault();
+              // Éviter les sauts de zoom massifs sur trackpad : deltaY est
+              // exprimé en pixels (souvent 4-40) ; on divise par 100 puis par
+              // ZOOM_STEP pour obtenir un incrément raisonnable.
+              const raw = -e.deltaY;
+              const norm = Math.max(-ZOOM_STEP * 2, Math.min(ZOOM_STEP * 2, raw / 100));
+              if (Math.abs(norm) < 0.02) return;
+              const r = svgRef.current?.getBoundingClientRect();
+              if (r) {
+                const cx = ((e.clientX - r.left) / r.width - 0.5) * (SIZE + 60);
+                const cy = ((e.clientY - r.top) / r.height - 0.5) * (SIZE + 60);
+                handleZoom(norm, cx, cy);
+              } else {
+                handleZoom(norm);
               }
             }}
             onPointerMove={(e) => {
