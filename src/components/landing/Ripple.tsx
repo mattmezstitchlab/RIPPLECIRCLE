@@ -299,6 +299,7 @@ export const Ripple: React.FC<RippleProps> = ({
 
   // Zoom & Pan state
   const [relationsVisible, setRelationsVisible] = useState(true);
+  const [showIncidentDetails, setShowIncidentDetails] = useState(false);
   const [relationPulse, setRelationPulse] = useState(0);
   const audioPulseRef = useRef<SVGCircleElement | null>(null);
   const onAudioLevel = useCallback((level: number) => {
@@ -1444,28 +1445,33 @@ export const Ripple: React.FC<RippleProps> = ({
         <aside className="ripple-inspector" aria-label="Comprendre et agir">
           <CausalBrief
             incident={moment?.cause ? moment : DAY_MOMENTS.find(m => m.cause) ?? DAY_MOMENTS[0]}
-            onSelect={() => choose({ kind: 'moment', id: DAY_MOMENTS.find(m => m.cause)?.id ?? DAY_MOMENTS[0].id })}
-          />
-          <SelectionDetail
-            focus={focus}
-            account={account}
-            person={person}
-            moment={moment}
-            track={track}
-            media={media}
-            dayFocus={dayFocus}
-            journeySel={journeySel}
-            personLinks={personLinks}
-            turning={turning}
-            onToggleTurn={() => {
-              sfx.playNodeClick();
-              if (!turning) setFocus({ kind: 'person', id: nearestPerson(angle) });
-              setTurning(p => !p);
+            onSelect={() => {
+              setShowIncidentDetails(true);
+              choose({ kind: 'moment', id: DAY_MOMENTS.find(m => m.cause)?.id ?? DAY_MOMENTS[0].id });
             }}
-            choose={choose}
-            onScrub={onScrub}
-            momentStates={engine.moments}
           />
+          {!(activeLayer === 'overview' && moment?.cause && !showIncidentDetails) && (
+            <SelectionDetail
+              focus={focus}
+              account={account}
+              person={person}
+              moment={moment}
+              track={track}
+              media={media}
+              dayFocus={dayFocus}
+              journeySel={journeySel}
+              personLinks={personLinks}
+              turning={turning}
+              onToggleTurn={() => {
+                sfx.playNodeClick();
+                if (!turning) setFocus({ kind: 'person', id: nearestPerson(angle) });
+                setTurning(p => !p);
+              }}
+              choose={choose}
+              onScrub={onScrub}
+              momentStates={engine.moments}
+            />
+          )}
           {track && <AudioPreview key={track.id} track={track} onLevel={onAudioLevel} />}
 
           <details className="ripple-inspector-fold">
@@ -1557,14 +1563,14 @@ const SelectionDetail: React.FC<DetailProps> = ({
     <section aria-label="Sélection" className="bg-[#fcfcfd] border border-black/[0.08] rounded-[22px] p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3 border-b border-black/[0.08] pb-3">
         <Eyebrow>{focus.kind === 'person' ? 'L’aiguille est sur' : 'Sélection'}</Eyebrow>
-        <button
+        {person && <button
           type="button"
           onClick={onToggleTurn}
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12.5px] font-bold bg-black/[0.06] hover:bg-black/[0.1] text-black"
         >
           {turning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
           {turning ? 'Pause' : 'Tourner'}
-        </button>
+        </button>}
       </div>
 
       <div key={JSON.stringify(focus)} className="news-swap mt-4 space-y-4 min-h-[160px]">
