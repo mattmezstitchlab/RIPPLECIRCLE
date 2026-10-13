@@ -1,37 +1,30 @@
 /**
- * ClockLighting — hemispheric base + directional key + cool rim light.
- * Tuned for monochrome brushed-metal look (ACES tone mapping handled by
- * the Canvas gl prop).
+ * ClockLighting — bright, even illumination for technical-product look.
  */
-import { useMemo } from 'react';
 import * as THREE from 'three';
 
 export function ClockLighting() {
-  const shadowCam = useMemo(() => {
-    const d = 14;
-    const cam = new THREE.OrthographicCamera(-d, d, d, -d, 0.1, 40);
-    cam.left = -d; cam.right = d; cam.top = d; cam.bottom = -d;
-    cam.near = 0.1; cam.far = 40;
-    return cam;
-  }, []);
-
+  const shadowCam = new THREE.OrthographicCamera(-14, 14, 14, -14, 0.1, 40);
   return (
     <>
-      <hemisphereLight args={[0xffffff, 0x8a877e, 1.6]} />
+      {/* Bright ambient base so no face reads as pure black */}
+      <ambientLight intensity={0.85} color={0xffffff} />
+      <hemisphereLight args={[0xffffff, 0xb8b4a6, 0.9]} />
       <directionalLight
         castShadow
-        position={[6, 10, 8]}
-        intensity={2.2}
+        position={[6, 12, 9]}
+        intensity={1.5}
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera={shadowCam}
-        shadow-bias={-0.0004}
+        shadow-bias={-0.0005}
       />
-      <directionalLight position={[-8, 4, -6]} intensity={1.0} color={0xdfe8ee} />
-      {/* Ground shadow catcher */}
-      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -1.6]}>
-        <planeGeometry args={[30, 30]} />
-        <shadowMaterial opacity={0.09} />
+      {/* Fill light from the opposite side to kill harsh shadows */}
+      <directionalLight position={[-7, 5, -5]} intensity={0.55} color={0xe8edf2} />
+      {/* Soft ground shadow catcher */}
+      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -2.5]}>
+        <planeGeometry args={[40, 40]} />
+        <shadowMaterial opacity={0.08} />
       </mesh>
     </>
   );
