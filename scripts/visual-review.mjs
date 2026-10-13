@@ -1,0 +1,108 @@
+import { chromium } from 'playwright';
+import { spawn } from 'node:child_process';
+import { mkdir, writeFile } from 'node:fs/promises';
+
+const PORT = 4175;
+const ROOT = 'http://127.0.0.1:' + PORT;
+const OUTPUT = 'artifacts/visual-review';
+const sizes = [
+  { id: 'desktop-1600', width: 1600, height: 900 },
+  { id: 'laptop-1366', width: 1366, height: 768 },
+  { id: 'tablet-1024', width: 1024, height: 768 },
+  { id: 'mobile-390', width: 390, height: 844 },
+  { id: 'mobile-360', width: 360, height: 740 }
+];
+await mkdir(OUTPUT, { recursive: true });
+const server = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
+  stdio: 'pipe', env: { ...process.env, BROWSER: 'none' }
+});
+server.stdout.on('data', (b) => process.stdout.write('vite: ' + String(b)));
+server.stderr.on('data', (b) => process.stderr.write('vite: ' + String(b)));
+let browser;
+const findings = [];
+const rect = (el) => {
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return { x: +r.x.toFixed(1), y: +r.y.toFixed(1), width: +r.width.toFixed(1),
+    height: +r.height.toFixed(1), bottom: +r.bottom.toFixed(1), right: +r.right.toFixed(1) };
+};
+try {
+  let ready = false;
+  for (let i = 0; i < 65; i++) {
+    try {
+      const response = await fetch(ROOT);
+      if (response.ok) { ready = true; break; }
+    } catch {}
+    await new Promise(resolve => setTimeout(resolve, 400));
+  }
+  if (!ready) throw new Error('Vite did not start');
+  browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  for (const size of sizes) {
+    const context = await browser.newContext({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
+    const page = await context.newPage();
+    const pageErrors = [];
+    page.on('pageerror', err => pageErrors.push(String(err.message)));
+    await page.goto(ROOT, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.locator('.ripple-watch-column').waitFor({ timeout: 16000 });
+    await page.screenshot({ path: OUTPUT + '/' + size.id + '.png', fullPage: true, animations: 'disabled' });
+    const result = await page.evaluate(() => {
+      const r = (el) => {
+        if (!el) return null;
+        const a = el.getBoundingClientRect();
+        return { x: +a.x.toFixed(1), y: +a.y.toFixed(1), width: +a.width.toFixed(1), height: +a.height.toFixed(1), right: +a.right.toFixed(1), bottom: +a.bottom.toFixed(1) };
+      };
+      const q = s => document.querySelector(s);
+      const all = s => [...document.querySelectorAll(s)];
+      const dial = r(q('[role="application"]'));
+      const inspector = r(q('.ripple-inspector'));
+      const cause = r(q('.ripple-causal-brief'));
+      const stage = r(q('.ripple-stage'));
+      return {
+        viewport: { width: innerWidth, height: innerHeight },
+        doc: { scrollWidth: document.documentElement.scrollWidth, scrollHeight: document.documentElement.scrollHeight },
+        stage, dial, inspector, cause,
+        orbit: r(q('.ripple-orbit-nav')),
+        navButtons: all('.ripple-orbit-button').map(el => ({ label: el.getAttribute('aria-label'), rect: r(el) })),
+        controls: r(q('.ripple-watch-controls')),
+        headerAccountCount: all('header button').length,
+        svgCount: all('[role="application"] svg').length,
+        bodyBackground: getComputedStyle(document.body).backgroundColor,
+        inspectorOverflow: q('.ripple-inspector') ? getComputedStyle(q('.ripple-inspector')).overflowY : '',
+        circleCenterDelta: dial ? +((dial.x + dial.width / 2) - innerWidth / 2).toFixed(1) : null,
+        causeInitiallyVisible: cause ? cause.top < innerHeight && cause.bottom > 0 : null
+      };
+    });
+    if (pageErrors.length) findings.push({ size: size.id, kind: 'console-errors', errors: pageErrors });
+    if (result.doc.scrollWidth > size.width + 2) findings.push({ size: size.id, kind: 'horizontal-overflow', pixels: result.doc.scrollWidth - size.width });
+    if (!result.dial || result.dial.width < 230) findings.push({ size: size.id, kind: 'dial-too-small', width: result.dial?.width });
+    if (size.width >= 1280 && (!result.causeInitiallyVisible || !result.inspector)) findings.push({ size: size.id, kind: 'causality-not-visible' });
+    if (size.width < 1280 && !result.causeInitiallyVisible) findings.push({ size: size.id, kind: 'causality-below-fold' });
+    if (result.navButtons.some(n => n.rect.x < -3 || n.rect.right > size.width + 3)) findings.push({ size: size.id, kind: 'orbit-control-clipped' });
+    if (result.headerAccountCount !== 1) findings.push({ size: size.id, kind: 'header-controls', count: result.headerAccountCount });
+    if (size.width >= 1280 && result.dial && result.inspector && result.dial.right > result.inspector.x + 1) findings.push({ size: size.id, kind: 'dial-inspector-overlap' });
+    const nav = page.getByRole('button', { name: 'Musique' });
+    await nav.click();
+    if (!page.url().includes('#playlist')) findings.push({ size: size.id, kind: 'navigation-failed' });
+    await page.getByRole('button', { name: 'Compte', exact: true }).click();
+    if (!page.url().includes('#account')) findings.push({ size: size.id, kind: 'account-failed' });
+    await page.getByRole('button', { name: 'Retour au Ripple' }).click();
+    await page.locator('.ripple-watch-column').waitFor();
+    if (size.id === 'mobile-390') {
+      await page.getByRole('button', { name: 'Compte', exact: true }).click();
+      await page.getByRole('button', { name: /Affichage/ }).click();
+      await page.getByRole('button', { name: /Mode nuit/ }).click();
+      await page.getByRole('button', { name: 'Retour au Ripple' }).click();
+      await page.screenshot({ path: OUTPUT + '/mobile-390-night.png', fullPage: true, animations: 'disabled' });
+    }
+    console.log('VISUAL_QA ' + JSON.stringify({ id: size.id, ...result, pageErrors }));
+    await context.close();
+  }
+  await writeFile(OUTPUT + '/findings.json', JSON.stringify({ findings }, null, 2));
+  console.log('VISUAL_FINDINGS ' + JSON.stringify(findings));
+  if (findings.some(x => ['console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed'].includes(x.kind))) {
+    process.exitCode = 1;
+  }
+} finally {
+  if (browser) await browser.close();
+  server.kill('SIGTERM');
+}
