@@ -39,7 +39,8 @@ import { DocSheet } from './DocSheet';
 import { ActionPanel } from './ActionPanel';
 import { AudioPreview } from './AudioPreview';
 import { ClockDial } from './ClockDial';
-import { CausalBrief } from './CausalBrief';
+import { InstantInspector } from './InstantInspector';
+import { angleAtMinute, minuteAtAngle, momentAt, causalDemoLinks, rolesForPublicIncident, shouldShowPublicCascade, START_MINUTE, END_MINUTE } from '../../utils/publicTimeline';
 import { Scene } from '../../data/orchestra';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { useReactiveOrchestra } from '../../engine/orchestra/useReactiveOrchestra';
@@ -249,6 +250,9 @@ export const Ripple: React.FC<RippleProps> = ({
   const [angle, setAngle] = useState(ANGLE[ORDER[0]]);
   const [turning, setTurning] = useState(false);
   const [focus, setFocus] = useState<Focus>({ kind: 'moment', id: 'd7' });
+  const [exploreMinute, setExploreMinute] = useState(timeToMinutesFrom17('21:08'));
+  const [followDemo, setFollowDemo] = useState(false);
+  const draggingTime = useRef(false);
 
   // Per-instance unique id for SVG clipPaths (avoids collisions if multiple Ripple instances mount).
   const instanceId = useRef(`r${Math.random().toString(36).slice(2, 8)}`);
@@ -299,7 +303,6 @@ export const Ripple: React.FC<RippleProps> = ({
 
   // Zoom & Pan state
   const [relationsVisible, setRelationsVisible] = useState(true);
-  const [showIncidentDetails, setShowIncidentDetails] = useState(false);
   const [relationPulse, setRelationPulse] = useState(0);
   const audioPulseRef = useRef<SVGCircleElement | null>(null);
   const onAudioLevel = useCallback((level: number) => {
@@ -327,8 +330,10 @@ export const Ripple: React.FC<RippleProps> = ({
   // Reactive orchestration engine (Phase 1 vertical slice — local, demo).
   const engine = useReactiveOrchestra();
   const memories = useMemo(() => MEMORIES.map((m) => ({ ...m, t: timeToMinutesFrom17(m.at) })), []);
-  const nowTrack = tracks.find((t) => minutes >= t.start && minutes < t.end) ?? null;
-  const nextSignal = tracks.find((t) => t.signal && t.start > minutes) ?? null;
+  const nowTrack = tracks.find((t) => exploreMinute >= t.start && exploreMinute < t.end) ?? null;
+  const nextSignal = tracks.find((t) => t.signal && t.start > exploreMinute) ?? null;
+  const activeMoment = momentAt(exploreMinute);
+  const publicCascadeActive = shouldShowPublicCascade(exploreMinute);
   const live = !paused && !manual;
 
   // L'identité du compte est la source de vérité du profil sélectionné dans le graphe.
@@ -350,6 +355,11 @@ export const Ripple: React.FC<RippleProps> = ({
       }
     };
   }, [account]);
+
+  const impactedPeopleIds = publicCascadeActive
+    ? rolesForPublicIncident().flatMap(role =>
+        ORDER.filter(id => dayRoleOf(personData[id]) === role).slice(0, role === 'invite' ? 2 : 1))
+    : [];
 
   const personPhoto = (id: string) => id === account.profileId && account.avatarUrl ? account.avatarUrl : guestPhoto(id);
   const publicJourney = account.journey.filter((milestone) => milestone.shared);
@@ -389,20 +399,24 @@ export const Ripple: React.FC<RippleProps> = ({
     return () => mq.removeEventListener('change', apply);
   }, []);
 
+  useEffect(() => {
+    if (followDemo) {
+      setExploreMinute(minutes);
+      setFocus({ kind: 'moment', id: momentAt(minutes).id });
+    }
+  }, [minutes, followDemo]);
+
   // Layer change focus synchronization
   useEffect(() => {
     setTurning(false);
     if (activeLayer === 'people') {
       setFocus((f) => (f.kind === 'person' ? f : { kind: 'person', id: account.profileId }));
-      if (activeLayer === 'people' && !reduceMotion) setTurning(true);
     } else if (activeLayer === 'calendar') setFocus({ kind: 'day', doy: DAY_J_DOY });
     else if (activeLayer === 'journey') {
       const first = publicJourney[0];
       setFocus(first ? { kind: 'journey', id: first.id } : { kind: 'person', id: account.profileId });
     } else if (activeLayer === 'day') {
-      let cur = DAY_MOMENTS[0].id;
-      DAY_MOMENTS.forEach((m) => timeToMinutesFrom17(m.at) <= minutes && (cur = m.id));
-      setFocus({ kind: 'moment', id: cur });
+      setFocus({ kind: 'moment', id: momentAt(exploreMinute).id });
     } else if (activeLayer === 'memory') setFocus({ kind: 'memory', id: memories[0].id });
     else if (activeLayer === 'playlist') setFocus({ kind: 'track', id: (nowTrack ?? tracks[0]).id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -428,6 +442,14 @@ export const Ripple: React.FC<RippleProps> = ({
     if (turning) setFocus((f) => (f.kind === 'person' && f.id === needlePerson ? f : { kind: 'person', id: needlePerson }));
   }, [needlePerson, turning]);
 
+  const chooseInstant = (value: number) => {
+    const minute = Math.max(START_MINUTE, Math.min(END_MINUTE, Math.round(value)));
+    setFollowDemo(false);
+    setTurning(false);
+    setExploreMinute(minute);
+    setFocus({ kind: 'moment', id: momentAt(minute).id });
+  };
+
   const choose = (f: Focus) => {
     sfx.playNodeClick();
     setTurning(false);
@@ -435,6 +457,15 @@ export const Ripple: React.FC<RippleProps> = ({
     if (f.kind === 'person') {
       setAngle(ANGLE[f.id]);
       setRelationPulse((n) => n + 1);
+    } else if (f.kind === 'moment') {
+      const selected = DAY_MOMENTS.find(m => m.id === f.id);
+      if (selected) { setFollowDemo(false); setExploreMinute(timeToMinutesFrom17(selected.at)); }
+    } else if (f.kind === 'track') {
+      const selected = tracks.find(t => t.id === f.id);
+      if (selected) { setFollowDemo(false); setExploreMinute(selected.start); }
+    } else if (f.kind === 'memory') {
+      const selected = memories.find(m => m.id === f.id);
+      if (selected) { setFollowDemo(false); setExploreMinute(selected.t); }
     }
   };
 
@@ -510,7 +541,7 @@ export const Ripple: React.FC<RippleProps> = ({
   const show = (layer: Exclude<RippleLayer, 'overview'>) => {
     // Dos du cercle : uniquement les photos des convives, tout le reste disparaît
     if (isBack) return layer === 'people';
-    return compact ? layer === activeLayer || (overview && (layer === 'people' || layer === 'playlist')) : true;
+    return compact ? layer === activeLayer || ((overview || activeLayer === 'playlist') && (layer === 'people' || layer === 'playlist' || layer === 'day')) : true;
   };
   const emphasis = (_layer: Exclude<RippleLayer, 'overview'>) => 1;
   const interactive = (layer: Exclude<RippleLayer, 'overview'>) => overview || layer === activeLayer;
@@ -589,7 +620,7 @@ export const Ripple: React.FC<RippleProps> = ({
 
   /* -------------------------------- Rendu -------------------------------- */
 
-  const nowAngle = timeAngle(minutes);
+  const nowAngle = angleAtMinute(exploreMinute);
   const person = focus.kind === 'person' ? personData[focus.id] : null;
   const moment = focus.kind === 'moment' ? DAY_MOMENTS.find((m) => m.id === focus.id) ?? null : null;
   const track = focus.kind === 'track' ? tracks.find((t) => t.id === focus.id) ?? null : null;
@@ -598,6 +629,13 @@ export const Ripple: React.FC<RippleProps> = ({
   const journeySel = focus.kind === 'journey' ? journeyMilestone(focus.id) : null;
   const personLinks = person ? relationLinks.filter((l) => l.a === person.id || l.b === person.id) : [];
   const scrubValue = Math.max(ORCH_START, Math.min(ORCH_END, minutes));
+  const focusTitle = person ? fullName(person) : moment ? moment.title : track ? track.title
+    : media ? media.legend : journeySel ? journeySel.title : dayFocus !== null
+      ? new Date(YEAR,0,dayFocus+1).toLocaleDateString('fr-FR',{ day:'numeric',month:'long' })
+      : activeMoment.title;
+  const activePeople = [...new Set(activeMoment.roles
+    .map(role => ORDER.find(id => dayRoleOf(personData[id]) === role))
+    .filter((id): id is string => Boolean(id)))].map(id => personData[id].first);
 
   return (
     <main className="max-w-[1680px] mx-auto px-4 sm:px-6 pt-3 pb-5">
