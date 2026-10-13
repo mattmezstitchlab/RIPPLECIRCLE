@@ -40,11 +40,18 @@ try {
   for (const size of sizes) {
     const context = await browser.newContext({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
     const page = await context.newPage();
+    // Audit local : ni CDN, ni images distantes, ni attente de fontes externes.
+    await page.route('**/*', route => {
+      if (route.request().url().startsWith(ROOT)) return route.continue();
+      return route.abort();
+    });
+    page.setDefaultTimeout(12000);
+    console.log('VISUAL_START ' + size.id);
     const pageErrors = [];
     page.on('pageerror', err => pageErrors.push(String(err.message)));
     await page.goto(ROOT, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.locator('.ripple-watch-column').waitFor({ timeout: 16000 });
-    await page.screenshot({ path: OUTPUT + '/' + size.id + '.png', fullPage: true, animations: 'disabled' });
+    await page.screenshot({ path: OUTPUT + '/' + size.id + '.png', fullPage: true, animations: 'disabled', timeout: 15000 });
     const result = await page.evaluate(() => {
       const r = (el) => {
         if (!el) return null;
@@ -92,7 +99,7 @@ try {
       await page.getByRole('button', { name: /Affichage/ }).click();
       await page.getByRole('button', { name: /Mode nuit/ }).click();
       await page.getByRole('button', { name: 'Retour au Ripple' }).click();
-      await page.screenshot({ path: OUTPUT + '/mobile-390-night.png', fullPage: true, animations: 'disabled' });
+      await page.screenshot({ path: OUTPUT + '/mobile-390-night.png', fullPage: true, animations: 'disabled', timeout: 15000 });
     }
     console.log('VISUAL_QA ' + JSON.stringify({ id: size.id, ...result, pageErrors }));
     await context.close();
