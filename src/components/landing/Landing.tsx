@@ -3,13 +3,15 @@ import { CircleUserRound } from 'lucide-react';
 import { useOrchestra } from '../../hooks/useOrchestra';
 import { Ripple, RippleLayer } from './Ripple';
 import { AccountPage } from './AccountPage';
+import { LegalDossier } from './LegalDossier';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { AccountState, INITIAL_ACCOUNT } from '../../data/account';
 
-type Page = RippleLayer | 'account';
+type Page = RippleLayer | 'account' | 'confidentiel';
 
 const readLayer = (): Page => {
   const hash = window.location.hash.replace(/^#/, '');
+  if (hash === 'confidentiel') return 'confidentiel';
   if (hash === 'account' || hash === 'calendar' || hash === 'journey' || hash === 'day' || hash === 'memory' || hash === 'playlist' || hash === 'people') return hash;
   return 'overview';
 };
@@ -63,6 +65,8 @@ export const Landing: React.FC = () => {
             }}
             onBackToRipple={() => { window.location.hash = ''; }}
           />
+        ) : layer === 'confidentiel' ? (
+          <LegalDossier />
         ) : (
           <Ripple
             activeLayer={layer}
