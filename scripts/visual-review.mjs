@@ -124,7 +124,12 @@ try {
     await toolsNav.getByRole('button', { name: 'Rejouer' }).click();
     if (await page.locator('.ripple-v4-frame').count() !== 7) findings.push({ size:size.id, kind:'v4-replay-frames-failed' });
     await page.locator('.ripple-v4-frame').nth(1).click();
-    if ((await page.locator('[data-testid="explored-time"]').innerText()) !== '21:08') findings.push({ size:size.id, kind:'v4-replay-dial-unsynced' });
+    try {
+      await page.waitForFunction(
+        () => document.querySelector('[data-testid="explored-time"]')?.textContent?.trim() === '21:08',
+        null, { timeout: 4000 }
+      );
+    } catch { findings.push({ size:size.id, kind:'v4-replay-dial-unsynced' }); }
     await page.getByRole('button',{name:'Revenir au début'}).click();
     await page.getByRole('button',{name:'Lancer le rejeu'}).click();
     try {
