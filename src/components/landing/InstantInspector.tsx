@@ -1,16 +1,27 @@
 import React from 'react';
-import { ArrowRight, Clock3, GitBranch, Music2, Pause, Play, Users } from 'lucide-react';
+import { ArrowRight, Clock3, GitBranch, Music2, Pause, Play } from 'lucide-react';
+import { ProfilePortrait } from './ProfilePortrait';
 import type { DayMoment } from '../../data/dayOf';
 import { DAY_MOMENTS } from '../../data/dayOf';
 import { DEMO_INCIDENT, END_MINUTE, START_MINUTE, shouldShowPublicCascade } from '../../utils/publicTimeline';
 import { minutesFrom17ToTime, timeToMinutesFrom17 } from '../../utils/time';
+
+export interface InspectorPerson {
+  id: string;
+  name: string;
+  role: string;
+  photo: string;
+}
 
 interface Props {
   minute: number;
   selectedKind: string;
   selectedTitle: string;
   moment: DayMoment;
-  people: string[];
+  selectedPerson: InspectorPerson | null;
+  contextPeople: InspectorPerson[];
+  effectPeople: Partial<Record<string, InspectorPerson>>;
+  onPerson: (id: string) => void;
   playingTitle: string | null;
   following: boolean;
   onMinute: (value: number) => void;
@@ -20,7 +31,8 @@ interface Props {
 }
 
 export const InstantInspector: React.FC<Props> = ({
-  minute, selectedKind, selectedTitle, moment, people, playingTitle,
+  minute, selectedKind, selectedTitle, moment,
+  selectedPerson, contextPeople, effectPeople, onPerson, playingTitle,
   following, onMinute, onFollow, onMoment, children
 }) => {
   const activeCascade = shouldShowPublicCascade(minute);
@@ -61,9 +73,34 @@ export const InstantInspector: React.FC<Props> = ({
           <span className="ripple-context-index">01</span>
           <div>
             <p className="ripple-context-caption">Maintenant</p>
-            <p className="ripple-context-title">{contextLabel}</p>
-            <p className="ripple-context-hint">{moment.at} · {moment.lieu}</p>
-            {selectedKind !== 'moment' && <p className="ripple-context-hint">Moment traversé : {moment.title}</p>}
+            {selectedPerson ? (
+              <div className="ripple-selected-person">
+                <div className="min-w-0">
+                  <p className="ripple-context-title">{selectedPerson.name}</p>
+                  <p className="ripple-context-hint">{selectedPerson.role}</p>
+                  <p className="ripple-context-hint">À {minutesFrom17ToTime(minute)} · {moment.title}</p>
+                </div>
+                <ProfilePortrait name={selectedPerson.name} src={selectedPerson.photo} size="large" />
+              </div>
+            ) : (
+              <>
+                <p className="ripple-context-title">{contextLabel}</p>
+                <p className="ripple-context-hint">{moment.at} · {moment.lieu}</p>
+                {selectedKind !== 'moment' && <p className="ripple-context-hint">Moment traversé : {moment.title}</p>}
+              </>
+            )}
+            {contextPeople.length > 0 && (
+              <div className="ripple-context-people" aria-label="Personnes de ce moment">
+                <p className="ripple-context-caption">Intervenants liés au moment</p>
+                {contextPeople.map(person => (
+                  <button key={person.id} type="button" className="ripple-context-person"
+                    onClick={() => onPerson(person.id)} aria-label={'Consulter ' + person.name}>
+                    <span className="ripple-person-text"><strong>{person.name}</strong><small>{person.role}</small></span>
+                    <ProfilePortrait name={person.name} src={person.photo} size="small" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <div className="ripple-context-step">
@@ -79,14 +116,23 @@ export const InstantInspector: React.FC<Props> = ({
             <p className="ripple-context-caption">Conséquences</p>
             {effects.length > 0 ? (
               <ul className="ripple-effects-list">
-                {effects.map((effect,i) => <li key={effect.role + i}><span>{effect.role}</span>{effect.text}</li>)}
+                {effects.map((effect,i) => {
+                  const linked = effectPeople[effect.role];
+                  return <li key={effect.role + i} className="ripple-effect-person">
+                    <span className="ripple-effect-copy"><strong>{effect.role}</strong>{effect.text}</span>
+                    {linked && <button type="button" className="ripple-effect-avatar"
+                      aria-label={'Consulter ' + linked.name} title={linked.name}
+                      onClick={() => onPerson(linked.id)}>
+                      <ProfilePortrait name={linked.name} src={linked.photo} size="small" />
+                    </button>}
+                  </li>;
+                })}
               </ul>
             ) : inDemoPath ? (
               <p className="ripple-context-copy">Étape liée par le scénario au retard de 21:08 ; impact détaillé non recalculé.</p>
             ) : (
               <p className="ripple-context-copy">Aucun impact causal établi pour cet instant.</p>
             )}
-            {people.length > 0 && <p className="ripple-context-meta"><Users className="w-3.5 h-3.5" /> {people.slice(0,3).join(' · ')}{people.length > 3 ? '…' : ''}</p>}
             {playingTitle && <p className="ripple-context-meta"><Music2 className="w-3.5 h-3.5" /> {playingTitle}</p>}
           </div>
         </div>
