@@ -87,17 +87,18 @@ export function ClockScene({ clock }: Props) {
       gl={{
         antialias: true,
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.08
+        toneMappingExposure: 1.05
       }}
-      style={{ background: 'transparent', position: 'absolute', inset: 0, cursor: 'grab' }}
+      style={{ position: 'absolute', inset: 0 }}
       onCreated={({ gl, scene }) => {
         scene.background = new THREE.Color(PAPER);
+        gl.setClearColor(PAPER, 1);
         gl.shadowMap.enabled = true;
         gl.shadowMap.type = THREE.PCFSoftShadowMap;
       }}
       onDoubleClick={() => clock.toggleFlip()}
     >
-      <fog attach="fog" args={[PAPER, 24, 42]} />
+      <fog attach="fog" args={[PAPER, 22, 38]} />
       <ClockLighting />
       <CameraController clock={clock} />
       <Jewel clock={clock} />

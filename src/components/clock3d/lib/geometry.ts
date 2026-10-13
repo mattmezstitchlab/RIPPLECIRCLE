@@ -9,20 +9,26 @@ import * as THREE from 'three';
 
 /** Builds an extruded annulus (flat disk with a hole) used as the ring body. */
 export function makeAnnulusGeometry(radius: number, width: number, depth: number): THREE.ExtrudeGeometry {
+  // ExtrudeGeometry extrudes from the XY plane along +Z by default — that is
+  // exactly the direction facing our 3/4 camera, so the top face of each ring
+  // is visible. We build the outer arc clockwise (Three default is CCW = front
+  // face) and the hole counter-clockwise (CCW = the hole faces the SAME way
+  // as the outer so it becomes a real cut-out, not a flipped cap).
   const shape = new THREE.Shape();
-  shape.absarc(0, 0, radius + width / 2, 0, Math.PI * 2, false);
+  shape.absarc(0, 0, radius + width / 2, 0, Math.PI * 2, false); // CCW outer
   const hole = new THREE.Path();
-  hole.absarc(0, 0, radius - width / 2, 0, Math.PI * 2, true);
+  hole.absarc(0, 0, radius - width / 2, 0, Math.PI * 2, true); // CW hole
   shape.holes.push(hole);
   const geo = new THREE.ExtrudeGeometry(shape, {
     depth,
     bevelEnabled: true,
     bevelThickness: 0.02,
     bevelSize: 0.02,
-    bevelSegments: 1,
+    bevelSegments: 2,
     curveSegments: 96
   });
-  geo.translate(0, 0, -depth / 2); // center on z = 0
+  geo.translate(0, 0, -depth / 2); // center on z = 0 so both sides extend equally
+  geo.computeVertexNormals();
   return geo;
 }
 

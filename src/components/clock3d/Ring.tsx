@@ -100,7 +100,10 @@ export function Ring({ def, index, baseZ, exploded, clock, labelForNode }: Props
 
   return (
     <group ref={groupRef} position={[0, 0, baseZ]}>
-      {/* Ring body — clickable for rotation drag + ring selection */}
+      {/* Ring body — clickable for rotation drag + ring selection.
+          Top cap is a flat annular ring (RingGeometry) placed at +depth/2 so
+          we are guaranteed a machined top surface even if the extruded-bevel
+          normals ever misbehave; it uses the same material as the body. */}
       <mesh
         castShadow
         receiveShadow
@@ -109,6 +112,13 @@ export function Ring({ def, index, baseZ, exploded, clock, labelForNode }: Props
         onPointerOver={() => { document.body.style.cursor = 'grab'; }}
         onPointerOut={() => { if (clock.hoveredId === null) document.body.style.cursor = ''; }}
       />
+      <mesh
+        receiveShadow
+        position={[0, 0, def.depth / 2 + 0.001]}
+        material={bodyMat}
+      >
+        <ringGeometry args={[def.radius - def.width / 2 + 0.005, def.radius + def.width / 2 - 0.005, 96]} />
+      </mesh>
       {/* Inner / outer rails */}
       <mesh geometry={railGeo(innerRail)} material={MAT.black} position={[0, 0, def.depth / 2 + 0.02]} />
       <mesh geometry={railGeo(outerRail)} material={MAT.black} position={[0, 0, def.depth / 2 + 0.02]} />
