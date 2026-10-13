@@ -1450,7 +1450,8 @@ const SelectionDetail: React.FC<DetailProps> = ({
       <div key={JSON.stringify(focus)} className="news-swap mt-4 space-y-4 min-h-[160px]">
         {person && (
           <>
-            <div>
+            <div className="ripple-detail-person">
+              <div className="min-w-0">
               <p className="text-[22px] font-extrabold tracking-tight" style={{ color: INK }}>
                 {person.first} {person.last}
               </p>
@@ -1466,6 +1467,8 @@ const SelectionDetail: React.FC<DetailProps> = ({
                   {account.rsvp !== 'no' && account.meal ? ` · ${account.meal === 'poisson' ? 'Filet de bar' : account.meal === 'volaille' ? 'Suprême de volaille' : 'Végétarien'}` : ''}
                 </p>
               )}
+              </div>
+              <ProfilePortrait name={fullName(person)} src={photoOf(account, person.id)} size="large" />
             </div>
 
             {personLinks.length > 0 && (
@@ -1482,12 +1485,7 @@ const SelectionDetail: React.FC<DetailProps> = ({
                           onClick={() => choose({ kind: 'person', id: other.id })}
                           className="w-full flex items-center gap-3 py-2 text-left group"
                         >
-                          <img
-                            src={photoOf(account, other.id)}
-                            alt=""
-                            className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-white shadow-sm group-hover:scale-105 transition-transform"
-                          />
-                          <span className="min-w-0">
+                          <span className="min-w-0 flex-1">
                             <span className="block text-[14px] font-bold truncate group-hover:text-[#0066cc]" style={{ color: INK }}>
                               {l.why} · {other.first} {other.last}
                             </span>
@@ -1496,6 +1494,7 @@ const SelectionDetail: React.FC<DetailProps> = ({
                               {common.length ? ` · ${common.map((c) => INTEREST_BY_ID[c].label).join(', ')}` : ''}
                             </span>
                           </span>
+                          <ProfilePortrait name={fullName(other)} src={photoOf(account, other.id)} size="medium" />
                         </button>
                       </li>
                     );
@@ -1848,7 +1847,6 @@ const LayerList: React.FC<LayerListProps> = ({ activeLayer, focus, account, jour
                   const p = personRecord(account, id);
                   return row(id, focus.kind === 'person' && focus.id === id, () => choose({ kind: 'person', id }), (
                     <>
-                      <img src={photoOf(account, id)} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 border border-black/10" loading="lazy" />
                       <span className="min-w-0 flex-1">
                         <span className="block text-[13.5px] font-bold truncate" style={{ color: INK }}>
                           {p.first} {p.last}
@@ -1857,6 +1855,7 @@ const LayerList: React.FC<LayerListProps> = ({ activeLayer, focus, account, jour
                           {p.job}
                         </span>
                       </span>
+                      <ProfilePortrait name={fullName(p)} src={photoOf(account, id)} size="small" />
                     </>
                   ));
                 })}
