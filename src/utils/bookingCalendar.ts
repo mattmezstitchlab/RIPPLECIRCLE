@@ -8,8 +8,9 @@ export function isoDay(year:number,monthIndex:number,day:number):string {
   return [String(year),String(monthIndex+1).padStart(2,'0'),String(day).padStart(2,'0')].join('-');
 }
 export function todayLocal():string {
-  const date=new Date();
-  return isoDay(date.getFullYear(),date.getMonth(),date.getDate());
+  const parts=new Intl.DateTimeFormat('fr-FR',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const get=(name:string)=>Number(parts.find(p=>p.type===name)?.value);
+  return isoDay(get('year'),get('month')-1,get('day'));
 }
 export function validFutureDay(day:string,today=todayLocal()):boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
@@ -20,8 +21,8 @@ export function dateSummary(day:string):{heading:string;weekday:string;daysAway:
   if(!validFutureDay(day))return null;
   const [y,m,d]=day.split('-').map(Number);
   const selected=new Date(Date.UTC(y,m-1,d,12));
-  const now=new Date();
-  const daysAway=Math.round((Date.UTC(y,m-1,d)-Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()))/86400000);
+  const [ty,tm,td]=todayLocal().split('-').map(Number);
+  const daysAway=Math.round((Date.UTC(y,m-1,d)-Date.UTC(ty,tm-1,td))/86400000);
   return {
     heading:new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(selected),
     weekday:new Intl.DateTimeFormat('fr-FR',{weekday:'long',timeZone:'UTC'}).format(selected),

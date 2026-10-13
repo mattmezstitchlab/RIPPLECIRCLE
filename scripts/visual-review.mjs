@@ -74,8 +74,12 @@ try {
       || !decodeURIComponent(mailHref).includes(bookingYear+'-06-12')
       || !decodeURIComponent(mailHref).includes('Lille'))
       findings.push({size:size.id,kind:'v8-request-mail-incorrect'});
-    if(['desktop-1600','mobile-390'].includes(size.id))
+    if(['desktop-1600','mobile-390'].includes(size.id)){
+      await page.locator('#ripple-booking-city').evaluate(el=>el.blur());
+      await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
+      await page.waitForTimeout(100);
       await page.screenshot({path:OUTPUT+'/'+size.id+'-v8-booking-selected.png',fullPage:true,animations:'disabled',timeout:15000});
+    }
     const bookingOverflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
     if(bookingOverflow>2)findings.push({size:size.id,kind:'v8-booking-overflow',pixels:bookingOverflow});
     await page.getByRole('link',{name:'Découvrir le cadran'}).click();
