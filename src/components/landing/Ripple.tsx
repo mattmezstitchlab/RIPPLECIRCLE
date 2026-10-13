@@ -5,6 +5,8 @@ import {
   Pause,
   Play,
   RotateCcw,
+  Volume2,
+  VolumeX,
   ZoomIn,
   ZoomOut
 } from 'lucide-react';
@@ -28,45 +30,53 @@ import { DOCS, euro, totalsOf } from '../../data/documents';
 import { ROLES } from '../../data/roles';
 import type { AccountState, JourneyMilestone } from '../../data/account';
 import { DocSheet } from './DocSheet';
+import { ActionPanel } from './ActionPanel';
 import { Scene } from '../../data/orchestra';
 import { usePersistentState } from '../../hooks/usePersistentState';
+import { useReactiveOrchestra } from '../../engine/orchestra/useReactiveOrchestra';
 import { END as ORCH_END, START as ORCH_START } from '../../hooks/useOrchestra';
 import { minutesFrom17ToTime, timeToMinutesFrom17 } from '../../utils/time';
 import { angularDist, arcPathAt, normDeg, polarXY } from '../../utils/radial';
 import { sfx } from '../../utils/audio';
+import { LIFECYCLE_META } from '../../engine/orchestra/types';
+import {
+  RIPPLE_SIZE as SIZE,
+  RIPPLE_CENTER as C,
+  RINGS as R,
+  RING_GAP,
+  GROUP_COLORS,
+  ZOOM_MIN,
+  ZOOM_MAX,
+  ZOOM_STEP,
+  PAN_MAX,
+  ACCENTS
+} from '../../ripple/config';
 
 /*
  * Ripple — Cadran concentrique haute accessibilité & lisibilité
  * Toutes les informations au pixel près, avec typographie agrandie,
  * avatars haute définition, contrôles de zoom / pan et modes de taille confort.
+ *
+ * Phase 1 stabilization: chord rendering, wheel zoom, unique clip-path ids,
+ * audio mute toggle, connection-state indicator, CSS-variable theming.
  */
 
-const INK = 'var(--ripple-ink, #1d1d1f)';
-const MUTED = 'var(--ripple-muted, #515154)';
-const BODY = 'var(--ripple-body, #1d1d1f)';
-
-const SIZE = 1000;
-const C = SIZE / 2;
-
-// Rayons des anneaux concentriques
-const R = {
-  calOuter: 488,
-  calInner: 462,
-  lifeOuter: 456,
-  lifeInner: 438,
-  day: 432,
-  hours: 408,
-  memory: 384,
-  playlist: 354,
-  tables: 320,
-  people: 288,
-  ring0: 172,
-  chord: 162
-};
-const RING_GAP = 12;
+const INK = ACCENTS.ink;
+const MUTED = ACCENTS.muted;
+const BODY = ACCENTS.body;
 
 const polar = (r: number, deg: number) => polarXY(C, C, r, deg);
 const arcPath = (r: number, a0: number, a1: number) => arcPathAt(C, C, r, a0, a1);
+
+/** Build a stable SVG path for a chord between two points on the people ring. */
+const chordPath = (a: number, b: number): string => {
+  const pa = polar(R.chord, a);
+  const pb = polar(R.chord, b);
+  // Quadratic control point pulled toward the center to curve inside the disk.
+  const mid = normDeg((a + b) / 2 + (Math.abs(a - b) > 180 ? 180 : 0));
+  const cp = polar(R.chord * 0.45, mid);
+  return `M ${pa.x} ${pa.y} Q ${cp.x} ${cp.y} ${pb.x} ${pb.y}`;
+};
 
 const DAY_START = timeToMinutesFrom17('15:00');
 const DAY_SPAN = timeToMinutesFrom17('05:00') - DAY_START;
@@ -97,7 +107,6 @@ const CAL_MARKERS = [
 /* ------------------------------- Personnes ------------------------------- */
 
 const GROUPS = [...NET_TABLES, TEAM_GROUP];
-const GROUP_COLORS = ['#0A84FF', '#D96B00', '#D91E48', '#1E7A39', INK];
 const ORDER = GROUPS.flatMap((g) => g.guests);
 const GROUP_GAP = 5;
 const STEP = (360 - GROUP_GAP * GROUPS.length) / ORDER.length;
@@ -222,6 +231,18 @@ export const Ripple: React.FC<RippleProps> = ({
   const [turning, setTurning] = useState(!reduceMotion && activeLayer !== 'calendar');
   const [focus, setFocus] = useState<Focus>({ kind: 'person', id: ORDER[0] });
 
+  // Per-instance unique id for SVG clipPaths (avoids collisions if multiple Ripple instances mount).
+  const instanceId = useRef(`r${Math.random().toString(36).slice(2, 8)}`);
+
+  // Audio mute — persisted, defaults to muted when user prefers reduced motion.
+  const [audioMuted, setAudioMuted] = usePersistentState<boolean>(
+    'regie.audio.v1',
+    reduceMotion
+  );
+  useEffect(() => {
+    sfx.enabled = !audioMuted;
+  }, [audioMuted]);
+
   // Recto / verso : Face A = graphique (points), Face B = photos & compte
   const [side, setSide] = useState<'front' | 'back'>('front');
   const [flipAnim, setFlipAnim] = useState<'idle' | 'out' | 'in'>('idle');
@@ -272,6 +293,9 @@ export const Ripple: React.FC<RippleProps> = ({
 
   const [added] = usePersistentState<Track[]>('regie.playlist.added.v1', []);
   const tracks = useMemo(() => schedule([...BASE_TRACKS, ...added]), [added]);
+
+  // Reactive orchestration engine (Phase 1 vertical slice — local, demo).
+  const engine = useReactiveOrchestra();
   const memories = useMemo(() => MEMORIES.map((m) => ({ ...m, t: timeToMinutesFrom17(m.at) })), []);
   const nowTrack = tracks.find((t) => minutes >= t.start && minutes < t.end) ?? null;
   const nextSignal = tracks.find((t) => t.signal && t.start > minutes) ?? null;
@@ -467,9 +491,20 @@ export const Ripple: React.FC<RippleProps> = ({
     return `${minX} ${minY} ${effectiveSpan} ${effectiveSpan}`;
   }, [zoom, pan]);
 
-  const handleZoom = (delta: number) => {
+  const handleZoom = (delta: number, cx?: number, cy?: number) => {
     sfx.playBlip(delta > 0 ? 1100 : 750, 0.02);
-    setZoom((z) => Math.max(0.85, Math.min(2.4, Number((z + delta).toFixed(2)))));
+    setZoom((z) => {
+      const next = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Number((z + delta).toFixed(2))));
+      // When wheel-zooming on a point, keep that point anchored by adjusting pan.
+      if (cx !== undefined && cy !== undefined && Math.abs(delta) > 0.001) {
+        const scale = next / z;
+        setPan((p) => ({
+          x: cx - (cx - p.x) * scale,
+          y: cy - (cy - p.y) * scale
+        }));
+      }
+      return next;
+    });
   };
 
   const resetView = () => {
@@ -652,8 +687,8 @@ export const Ripple: React.FC<RippleProps> = ({
         <div className="flex items-center gap-1.5" role="toolbar" aria-label="Zoom du cercle">
         <button
           type="button"
-          onClick={() => handleZoom(-0.25)}
-          disabled={zoom <= 0.85}
+          onClick={() => handleZoom(-ZOOM_STEP)}
+          disabled={zoom <= ZOOM_MIN}
           aria-label="Dézoomer"
           className="pressable w-8 h-8 rounded-full border flex items-center justify-center disabled:opacity-40"
           style={{ background: 'var(--ripple-surface, #fff)', borderColor: 'var(--ripple-line, rgba(0,0,0,0.1))', color: INK }}
@@ -665,8 +700,8 @@ export const Ripple: React.FC<RippleProps> = ({
         </span>
         <button
           type="button"
-          onClick={() => handleZoom(0.25)}
-          disabled={zoom >= 2.4}
+          onClick={() => handleZoom(ZOOM_STEP)}
+          disabled={zoom >= ZOOM_MAX}
           aria-label="Zoomer"
           className="pressable w-8 h-8 rounded-full border flex items-center justify-center disabled:opacity-40"
           style={{ background: 'var(--ripple-surface, #fff)', borderColor: 'var(--ripple-line, rgba(0,0,0,0.1))', color: INK }}
@@ -684,6 +719,17 @@ export const Ripple: React.FC<RippleProps> = ({
             100%
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => {
+            setAudioMuted((m) => !m);
+          }}
+          aria-label={audioMuted ? 'Activer les effets sonores' : 'Couper les effets sonores'}
+          className="pressable w-8 h-8 rounded-full border flex items-center justify-center"
+          style={{ background: 'var(--ripple-surface, #fff)', borderColor: 'var(--ripple-line, rgba(0,0,0,0.1))', color: audioMuted ? MUTED : INK }}
+        >
+          {audioMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+        </button>
         </div>
       </div>
 
@@ -720,7 +766,8 @@ export const Ripple: React.FC<RippleProps> = ({
           <svg
             ref={svgRef}
             viewBox={viewBoxStr}
-            className="absolute inset-0 w-full h-full overflow-visible touch-none select-none"
+            className="absolute inset-0 w-full h-full overflow-visible select-none"
+            style={{ touchAction: 'pan-y', msTouchAction: 'pan-y' }}
             aria-hidden="true"
             onPointerDown={(e) => {
               const p = angleFromEvent(e);
@@ -739,13 +786,36 @@ export const Ripple: React.FC<RippleProps> = ({
               setAngle(p.a);
               setFocus({ kind: 'person', id: nearestPerson(p.a) });
             }}
+            onWheel={(e) => {
+              // Zoom roue/pinch UNIQUEMENT quand Ctrl ou Cmd est enfoncé
+              // (ce qui correspond au geste standard "pincer" du trackpad,
+              // signalé par les navigateurs comme wheel+ctrlKey).
+              // Un défilement trackpad normal NE DOIT PAS zoomer et doit
+              // laisser la page défiler — aucun preventDefault dans ce cas.
+              if (!(e.ctrlKey || e.metaKey)) return;
+              e.preventDefault();
+              // Éviter les sauts de zoom massifs sur trackpad : deltaY est
+              // exprimé en pixels (souvent 4-40) ; on divise par 100 puis par
+              // ZOOM_STEP pour obtenir un incrément raisonnable.
+              const raw = -e.deltaY;
+              const norm = Math.max(-ZOOM_STEP * 2, Math.min(ZOOM_STEP * 2, raw / 100));
+              if (Math.abs(norm) < 0.02) return;
+              const r = svgRef.current?.getBoundingClientRect();
+              if (r) {
+                const cx = ((e.clientX - r.left) / r.width - 0.5) * (SIZE + 60);
+                const cy = ((e.clientY - r.top) / r.height - 0.5) * (SIZE + 60);
+                handleZoom(norm, cx, cy);
+              } else {
+                handleZoom(norm);
+              }
+            }}
             onPointerMove={(e) => {
               if (panning.current) {
                 const dx = (e.clientX - panStart.current.x) * ((SIZE + 60) / zoom / 600);
                 const dy = (e.clientY - panStart.current.y) * ((SIZE + 60) / zoom / 600);
                 setPan({
-                  x: Math.max(-280, Math.min(280, panStart.current.panX - dx)),
-                  y: Math.max(-280, Math.min(280, panStart.current.panY - dy))
+                  x: Math.max(-PAN_MAX, Math.min(PAN_MAX, panStart.current.panX - dx)),
+                  y: Math.max(-PAN_MAX, Math.min(PAN_MAX, panStart.current.panY - dy))
                 });
                 return;
               }
@@ -1131,11 +1201,38 @@ export const Ripple: React.FC<RippleProps> = ({
                     />
                   ))}
 
+                {/* ---------- Cordes de synergie (liens entre personnes) ---------- */}
+                {!isBack && relationLinks.length > 0 && (
+                  <g pointerEvents="none">
+                    {relationLinks.map((l, i) => {
+                      const lit = related.people.has(l.a) && related.people.has(l.b);
+                      // Only show chords when one endpoint is the focused person (avoid spider web).
+                      const relevant =
+                        (focus.kind === 'person' && (l.a === focus.id || l.b === focus.id)) ||
+                        lit;
+                      if (!relevant && focus.kind === 'person') return null;
+                      if (!relevant && activeLayer !== 'overview' && activeLayer !== 'people') return null;
+                      const emphasis = focus.kind === 'person' && (l.a === focus.id || l.b === focus.id) ? 1 : 0.22;
+                      return (
+                        <path
+                          key={`chord-${i}`}
+                          d={chordPath(ANGLE[l.a], ANGLE[l.b])}
+                          fill="none"
+                          stroke={INK}
+                          strokeWidth={focus.kind === 'person' && (l.a === focus.id || l.b === focus.id) ? 1.4 : 0.7}
+                          strokeOpacity={emphasis * (night ? 0.5 : 0.35)}
+                          strokeLinecap="round"
+                        />
+                      );
+                    })}
+                  </g>
+                )}
+
                 {/* Disque central : la sélection respire, les cordes passent dessous */}
                 <circle
                   cx={C}
                   cy={C}
-                  r={148}
+                  r={R.centerDisk}
                   fill="var(--ripple-surface, #ffffff)"
                   stroke={night ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)'}
                   strokeWidth={1.5}
@@ -1194,7 +1291,7 @@ export const Ripple: React.FC<RippleProps> = ({
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={() => choose({ kind: 'person', id })}
                     >
-                      <clipPath id={`rp-p-${id}`}>
+                      <clipPath id={`${instanceId.current}-p-${id}`}>
                         <circle cx={p.x} cy={p.y} r={baseR} />
                       </clipPath>
                       <image
@@ -1203,7 +1300,7 @@ export const Ripple: React.FC<RippleProps> = ({
                         y={p.y - baseR}
                         width={baseR * 2}
                         height={baseR * 2}
-                        clipPath={`url(#rp-p-${id})`}
+                        clipPath={`url(#${instanceId.current}-p-${id})`}
                         preserveAspectRatio="xMidYMid slice"
                       />
                       {isFocus && <circle cx={p.x} cy={p.y} r={baseR + 6} fill="none" stroke={dotColor} strokeWidth={3} />}
@@ -1249,16 +1346,20 @@ export const Ripple: React.FC<RippleProps> = ({
           </svg>
 
           {/* ---------- Cœur du cercle : portrait en grand, sans carte ---------- */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {/* Overlay ancré au centre géométrique : l'avatar/disque vert est
+              positionné EXACTEMENT au centre du cercle (top/left:50% + translate -50%),
+              et le bloc nom/titre est placé sous lui. Ainsi le rond central
+              n'est plus décalé vers le haut par la hauteur du texte. */}
+          <div className="absolute inset-0 pointer-events-none">
             <div
               key={JSON.stringify(focus)}
-              className="news-swap flex flex-col items-center text-center px-6"
-              style={{ width: '46%', maxWidth: 340 }}
+              className="news-swap absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center text-center"
+              style={{ width: '31.5%' /* ~2 × centerDiskRatio − petite marge */ }}
             >
               {person && !isBack && (
                 <>
                   <span
-                    className="w-28 h-28 sm:w-36 sm:h-36 rounded-full flex items-center justify-center text-[34px] sm:text-[42px] font-extrabold"
+                    className="w-[72%] max-w-[144px] aspect-square rounded-full flex items-center justify-center text-[28px] sm:text-[38px] font-extrabold shrink-0"
                     style={{
                       background: GROUP_ARC.find((g) => g.id === TABLE_OF[person.id]?.id)?.color ?? INK,
                       color: '#fff',
@@ -1268,10 +1369,10 @@ export const Ripple: React.FC<RippleProps> = ({
                     {person.first.charAt(0)}
                     {person.last.charAt(0)}
                   </span>
-                  <p className="mt-3 text-[22px] font-extrabold tracking-tight leading-tight" style={{ color: INK }}>
+                  <p className="mt-1.5 text-[13px] sm:text-[18px] font-extrabold tracking-tight leading-tight px-1" style={{ color: INK }}>
                     {fullName(person)}
                   </p>
-                  <p className="text-[13px] font-semibold mt-0.5" style={{ color: BODY }}>
+                  <p className="text-[10px] sm:text-[12px] font-semibold mt-0.5 px-1" style={{ color: BODY }}>
                     {person.job}
                   </p>
                 </>
@@ -1281,19 +1382,19 @@ export const Ripple: React.FC<RippleProps> = ({
                   <img
                     src={personPhoto(person.id)}
                     alt=""
-                    className="w-36 h-36 sm:w-44 sm:h-44 rounded-full object-cover"
+                    className="w-[86%] max-w-[172px] aspect-square rounded-full object-cover shrink-0"
                     style={{ boxShadow: '0 10px 32px rgba(0,0,0,0.16)' }}
                   />
-                  <p className="mt-3 text-[22px] font-extrabold tracking-tight leading-tight" style={{ color: INK }}>
+                  <p className="mt-2 text-[13px] sm:text-[18px] font-extrabold tracking-tight leading-tight px-1" style={{ color: INK }}>
                     {fullName(person)}
                   </p>
-                  <p className="text-[13px] font-semibold mt-0.5" style={{ color: BODY }}>
+                  <p className="text-[10px] sm:text-[12px] font-semibold mt-0.5 px-1" style={{ color: BODY }}>
                     {person.job} · {TABLE_OF[person.id]?.name}
                   </p>
                   {person.id === account.profileId ? (
-                    <div className="mt-2.5 flex flex-wrap items-center justify-center gap-1.5 pointer-events-auto">
+                    <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1 pointer-events-auto">
                       <span
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10.5px] font-bold"
                         style={{
                           background:
                             account.rsvp === 'yes'
@@ -1304,7 +1405,7 @@ export const Ripple: React.FC<RippleProps> = ({
                           color: account.rsvp === 'yes' ? '#1E7A39' : account.rsvp === 'no' ? '#C7342B' : '#9A5B00'
                         }}
                       >
-                        {account.rsvp === 'yes' ? `Présent · ${account.partySize} pers.` : account.rsvp === 'no' ? 'Absent' : 'À confirmer'}
+                        {account.rsvp === 'yes' ? `Présent · ${account.partySize}` : account.rsvp === 'no' ? 'Absent' : 'À confirmer'}
                       </span>
                       <button
                         type="button"
@@ -1312,14 +1413,14 @@ export const Ripple: React.FC<RippleProps> = ({
                           sfx.playNodeClick();
                           window.location.hash = 'account';
                         }}
-                        className="pressable px-2.5 py-1 rounded-full text-[11px] font-bold"
+                        className="pressable px-2 py-0.5 rounded-full text-[9px] sm:text-[10.5px] font-bold"
                         style={{ background: INK, color: 'var(--ripple-surface, #fff)' }}
                       >
-                        Mon compte
+                        Compte
                       </button>
                     </div>
                   ) : (
-                    <p className="mt-1.5 text-[12px] font-medium" style={{ color: MUTED }}>
+                    <p className="mt-1 text-[9px] sm:text-[11px] font-medium px-1 line-clamp-2" style={{ color: MUTED }}>
                       {person.seeking}
                     </p>
                   )}
@@ -1327,13 +1428,13 @@ export const Ripple: React.FC<RippleProps> = ({
               )}
               {moment && (
                 <>
-                  <p className="text-[14px] font-extrabold tabular" style={{ color: moment.retard ? '#C7342B' : INK }}>
+                  <p className="text-[12px] sm:text-[14px] font-extrabold tabular" style={{ color: moment.retard ? '#C7342B' : INK }}>
                     {moment.at}{moment.retard ? ` · +${moment.retard} min` : ''}
                   </p>
-                  <p className="mt-1 text-[21px] font-extrabold leading-tight" style={{ color: INK }}>
+                  <p className="mt-1 text-[15px] sm:text-[20px] font-extrabold leading-tight px-1" style={{ color: INK }}>
                     {moment.title}
                   </p>
-                  <p className="text-[14px] font-semibold mt-0.5" style={{ color: BODY }}>
+                  <p className="text-[11px] sm:text-[13px] font-semibold mt-0.5 px-1" style={{ color: BODY }}>
                     {moment.lieu}
                   </p>
                 </>
@@ -1341,51 +1442,51 @@ export const Ripple: React.FC<RippleProps> = ({
               {track && (
                 <>
                   <span
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-[26px] sm:text-[30px] font-black mt-1"
+                    className="w-[55%] max-w-[110px] aspect-square rounded-full flex items-center justify-center text-[22px] sm:text-[28px] font-black shrink-0"
                     style={{ background: SETS[track.set].color, color: '#fff' }}
                   >
                     ♪
                   </span>
-                  <p className="mt-2 text-[20px] font-extrabold leading-tight" style={{ color: INK }}>
+                  <p className="mt-2 text-[14px] sm:text-[18px] font-extrabold leading-tight px-1" style={{ color: INK }}>
                     {track.title}
                   </p>
-                  <p className="text-[14px] font-semibold" style={{ color: BODY }}>
+                  <p className="text-[11px] sm:text-[13px] font-semibold px-1" style={{ color: BODY }}>
                     {track.artist}
                   </p>
-                  <p className="text-[12.5px] font-medium mt-0.5" style={{ color: MUTED }}>
-                    {fmt(track.start)} · proposé par {NET_BY_ID[track.by]?.first}
+                  <p className="text-[10px] sm:text-[12px] font-medium mt-0.5 px-1" style={{ color: MUTED }}>
+                    {fmt(track.start)} · {NET_BY_ID[track.by]?.first}
                   </p>
                 </>
               )}
               {media && (
                 <>
                   <span
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-[15px] font-black mt-1"
+                    className="w-[55%] max-w-[110px] aspect-square rounded-full flex items-center justify-center text-[13px] sm:text-[15px] font-black shrink-0"
                     style={{ background: MEDIA_TYPE_META[media.type].color, color: '#fff' }}
                   >
                     {MEDIA_TYPE_META[media.type].label.charAt(0)}
                   </span>
-                  <p className="mt-2 text-[14px] font-bold leading-snug line-clamp-2" style={{ color: INK }}>
+                  <p className="mt-2 text-[12px] sm:text-[14px] font-bold leading-snug line-clamp-2 px-1" style={{ color: INK }}>
                     {media.legend}
                   </p>
-                  <p className="text-[12px] font-medium" style={{ color: MUTED }}>
+                  <p className="text-[10px] sm:text-[12px] font-medium px-1" style={{ color: MUTED }}>
                     {media.at} · {fullName(NET_BY_ID[media.author])}
                   </p>
                 </>
               )}
               {dayFocus !== null && (
                 <>
-                  <p className="text-[12px] font-extrabold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+                  <p className="text-[10px] sm:text-[12px] font-extrabold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
                     Calendrier {YEAR}
                   </p>
-                  <p className="mt-1 text-[21px] font-extrabold leading-tight" style={{ color: INK }}>
+                  <p className="mt-1 text-[15px] sm:text-[20px] font-extrabold leading-tight px-1" style={{ color: INK }}>
                     {new Date(YEAR, 0, dayFocus + 1).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
                   </p>
                   {(() => {
                     const mk = CAL_MARKERS.find((m) => DAY_J_DOY + m.offset === dayFocus);
                     const diff = DAY_J_DOY - dayFocus;
                     return (
-                      <p className="mt-1 text-[13px] font-medium" style={{ color: BODY }}>
+                      <p className="mt-1 text-[11px] sm:text-[13px] font-medium px-1" style={{ color: BODY }}>
                         {mk ? `${mk.label} · ${mk.detail}` : diff > 0 ? `J-${diff} avant le mariage` : diff < 0 ? `J+${-diff} après le mariage` : ''}
                       </p>
                     );
@@ -1395,17 +1496,17 @@ export const Ripple: React.FC<RippleProps> = ({
               {journeySel && (
                 <>
                   <span
-                    className="w-14 h-14 rounded-full mt-1"
+                    className="w-[45%] max-w-[90px] aspect-square rounded-full shrink-0"
                     style={{ background: JOURNEY_COLORS[journeySel.kind] ?? '#8e8e93' }}
                   />
-                  <p className="mt-3 text-[13px] font-bold tabular" style={{ color: MUTED }}>
+                  <p className="mt-2 text-[11px] sm:text-[13px] font-bold tabular px-1" style={{ color: MUTED }}>
                     {new Date(`${journeySel.date}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
-                  <p className="mt-1 text-[21px] font-extrabold leading-tight" style={{ color: INK }}>
+                  <p className="mt-1 text-[15px] sm:text-[20px] font-extrabold leading-tight px-1" style={{ color: INK }}>
                     {journeySel.title}
                   </p>
                   {journeySel.detail && (
-                    <p className="mt-1 text-[13px] leading-snug line-clamp-2" style={{ color: BODY }}>
+                    <p className="mt-1 text-[11px] sm:text-[13px] leading-snug line-clamp-2 px-1" style={{ color: BODY }}>
                       {journeySel.detail}
                     </p>
                   )}
@@ -1417,6 +1518,8 @@ export const Ripple: React.FC<RippleProps> = ({
 
         {/* ===== Zone 3 · Panneau d'Information Haute Lisibilité ===== */}
         <aside className="w-full max-w-[520px] mx-auto xl:mx-0 space-y-6">
+          <ActionPanel engine={engine} />
+
           <SelectionDetail
             focus={focus}
             account={account}
@@ -1435,6 +1538,7 @@ export const Ripple: React.FC<RippleProps> = ({
             }}
             choose={choose}
             onScrub={onScrub}
+            momentStates={engine.moments}
           />
 
           <LayerList
@@ -1451,9 +1555,19 @@ export const Ripple: React.FC<RippleProps> = ({
         </aside>
       </div>
 
-      <p className="mt-10 text-center text-[13px] font-medium" style={{ color: MUTED }}>
-        Démonstration régie · {NET_GUESTS.length + TEAM_GROUP.guests.length} profils complets sur les 94 convives du dîner.
-      </p>
+      <div className="mt-10 flex flex-col items-center gap-3">
+        <span
+          className="ripple-demo-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide"
+          title="Contenu fictif — démonstration locale sans serveur"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden="true" />
+          DÉMONSTRATION · Données fictives · Mariage Alexandre &amp; Sophie (Chantilly)
+        </span>
+        <p className="text-center text-[13px] font-medium" style={{ color: MUTED }}>
+          {NET_GUESTS.length + TEAM_GROUP.guests.length} profils complets sur les 94 convives du dîner.
+          Aucune donnée réelle · orchestration simulée côté navigateur.
+        </p>
+      </div>
     </main>
   );
 };
@@ -1474,6 +1588,7 @@ interface DetailProps {
   onToggleTurn: () => void;
   choose: (f: Focus) => void;
   onScrub: (m: number) => void;
+  momentStates: Record<string, { status: string; delayMinutes: number }>;
 }
 
 const SelectionDetail: React.FC<DetailProps> = ({
@@ -1489,7 +1604,8 @@ const SelectionDetail: React.FC<DetailProps> = ({
   turning,
   onToggleTurn,
   choose,
-  onScrub
+  onScrub,
+  momentStates
 }) => {
   const [openDocId, setOpenDocId] = useState<string | null>(null);
   const personDocs = person?.roleId ? DOCS[person.roleId] ?? [] : [];
@@ -1605,9 +1721,26 @@ const SelectionDetail: React.FC<DetailProps> = ({
 
         {moment && (
           <>
-            <p className="text-[20px] font-extrabold tracking-tight" style={{ color: INK }}>
-              {moment.at} · {moment.title}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[20px] font-extrabold tracking-tight" style={{ color: INK }}>
+                {moment.at} · {moment.title}
+              </p>
+              {momentStates[moment.id] && (() => {
+                const s = momentStates[moment.id];
+                const meta = (LIFECYCLE_META as Record<string, { label: string; dot: string; text: string }>)[s.status];
+                if (!meta) return null;
+                return (
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider"
+                    style={{ background: `${meta.dot}22`, color: meta.text, border: `1px solid ${meta.dot}55` }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.dot }} />
+                    {meta.label}
+                    {s.delayMinutes ? ` · +${s.delayMinutes} min` : ''}
+                  </span>
+                );
+              })()}
+            </div>
             <p className="text-[14px] font-medium text-[#424245]">{moment.lieu}</p>
             <ul className="space-y-1.5 mt-2">
               {moment.tasks.map((t) => (

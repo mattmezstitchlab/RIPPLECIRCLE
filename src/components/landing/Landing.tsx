@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { CalendarDays, Camera, CircleUserRound, Clock, Layers, Music2, SunMoon, Users } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CalendarDays, Camera, CircleUserRound, Clock, Layers, Music2, Pause, Play, SunMoon, Users } from 'lucide-react';
 import { useOrchestra } from '../../hooks/useOrchestra';
 import { Ripple, RippleLayer } from './Ripple';
 import { sfx } from '../../utils/audio';
@@ -32,6 +32,17 @@ export const Landing: React.FC = () => {
   const [account, setAccount] = usePersistentState<AccountState>('regie.account.v2', INITIAL_ACCOUNT);
   const [accountToast, setAccountToast] = useState<string | null>(null);
 
+  // Orchestra connection/live state (client-side — labeled "démonstration" for clarity).
+  const liveState = useMemo(() => {
+    if (orchestra.manual) {
+      return { label: 'Temps manuel', color: '#FF9F0A', dot: '#FF9F0A', icon: Clock };
+    }
+    if (orchestra.paused) {
+      return { label: 'Pause', color: '#8E8E93', dot: '#AEAEB2', icon: Pause };
+    }
+    return { label: 'Démonstration', color: '#30D158', dot: '#30D158', icon: Play };
+  }, [orchestra.manual, orchestra.paused]);
+
   useEffect(() => {
     const prev = document.body.style.background;
     document.body.style.background = account.theme === 'night' ? '#0b0b0d' : '#ffffff';
@@ -54,11 +65,29 @@ export const Landing: React.FC = () => {
       <header className="fixed top-0 inset-x-0 z-50 h-[56px] ripple-header backdrop-blur-xl backdrop-saturate-150 border-b">
         <div className="max-w-[1440px] mx-auto h-full px-4 sm:px-6 flex items-center justify-between gap-4">
           <span className="flex items-center gap-2 text-[16px] font-semibold tracking-tight shrink-0">
-            <span className="w-2 h-2 rounded-full bg-[#30D158] animate-pulse" aria-hidden="true" />
-            Régie Live
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ background: liveState.dot }}
+              aria-hidden="true"
+            />
+            <span className="hidden sm:inline">Ripple</span>
+            <span
+              className="hidden sm:inline-flex items-center gap-1 text-[12px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: `${liveState.dot}22`, color: liveState.color }}
+              aria-live="polite"
+            >
+              <liveState.icon className="w-3 h-3" />
+              {liveState.label}
+            </span>
           </span>
 
           <nav aria-label="Couches du cercle" className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full">
+            <a
+              href="/clock3d/index.html"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-black/15 bg-black px-3 text-[12px] font-bold text-white hover:bg-black/85"
+            >
+              ⟡ 3D
+            </a>
             {NAV.map((item) => {
               const on = layer === item.id;
               const Icon = item.icon;

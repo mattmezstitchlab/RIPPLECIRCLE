@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f3f1ea">
+<meta name="description" content="RIPPLECIRCLE — une horloge architecturale 3D pour explorer le temps, les personnes, les relations et leurs conséquences.">
+<title>RIPPLECIRCLE — L’horloge des conséquences</title>
+<style>
+:root{--paper:#f3f1ea;--paper-light:#faf9f5;--ink:#252822;--muted:#797b72;--line:#d4d3c8;--gold:#a5864c;--blue:#668693;--green:#66816a;--serif:Georgia,"Times New Roman",serif;--sans:Inter,Arial,Helvetica,sans-serif;--mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--paper);color:var(--ink)}
+body{font-family:var(--sans);font-size:12px}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer;color:inherit}
+button,a,input,textarea,select{-webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+button:disabled{opacity:.5;cursor:wait}
+button{transition:background .18s,color .18s,border-color .18s}
+button svg{pointer-events:none}
+[hidden]{display:none!important}
+.icon{width:17px;height:17px;stroke:currentColor;stroke-width:1.5;fill:none;flex:none}
+.symbols{position:absolute;width:0;height:0;overflow:hidden}
+.skip-link{position:fixed;left:16px;top:-60px;z-index:100;background:var(--ink);color:white;padding:12px}
+.skip-link:focus{top:12px}
+.app{height:100dvh;min-height:680px;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:87px;flex:none;padding:19px 27px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--ink);gap:20px;position:relative;z-index:20;background:var(--paper)}
+.brand{display:flex;gap:18px;align-items:center;min-width:0}
+.brand-mark{width:39px;height:39px;position:relative;border:1px solid var(--ink);border-radius:50%;flex:none}
+.brand-mark:before,.brand-mark:after{content:"";position:absolute;border:1px solid var(--ink);border-radius:50%;inset:6px}
+.brand-mark:after{inset:13px;background:var(--ink)}
+.brand-mark i{position:absolute;width:6px;height:6px;background:var(--gold);border:1px solid var(--paper);border-radius:50%;top:3px;left:25px;z-index:1}
+.brand h1{font:normal 30px/.95 var(--serif);letter-spacing:.06em;margin:0}
+.brand h1 span{font-style:italic;letter-spacing:.015em}
+.brand p{font:8px var(--mono);letter-spacing:.19em;margin:9px 0 0;color:var(--muted);text-transform:uppercase}
+.header-actions{display:flex;align-items:center;gap:9px}
+.session{margin-right:17px;text-align:right}
+.session strong{font:9px var(--mono);letter-spacing:.12em;display:block}
+.session small{display:block;color:var(--muted);font-size:9px;margin-top:6px}
+.live-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:1px}
+.btn{border:1px solid var(--line);background:transparent;padding:10px 13px;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:35px;font-size:10px;font-weight:500;text-decoration:none}
+.btn:hover{background:#e7e5db;border-color:#aaa99d}
+.btn.dark{background:var(--ink);border-color:var(--ink);color:var(--paper-light)}
+.btn.dark:hover{background:#464c40}
+.btn.small{padding:7px 9px;font-size:9px;min-height:30px}
+.icon-btn{width:35px;height:35px;padding:0;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;background:transparent;flex:none}
+.icon-btn:hover{background:#e7e5db}
+.workspace{display:grid;grid-template-columns:216px minmax(0,1fr) 268px;flex:1;min-height:0}
+.navigator,.inspector{min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:#b5b6aa transparent}
+.navigator{padding:26px 21px 18px;border-right:1px solid var(--line);display:flex;flex-direction:column;background:rgba(255,255,255,.12)}
+.eyebrow{font:8px var(--mono);letter-spacing:.15em;text-transform:uppercase;color:var(--muted);line-height:1.6}
+.nav-title{font:normal 29px/1.1 var(--serif);letter-spacing:-.035em;margin:9px 0 10px}
+.nav-intro{font-size:10px;line-height:1.65;color:var(--muted);margin:0 0 25px}
+.section-label{font:8px var(--mono);letter-spacing:.13em;text-transform:uppercase;margin:0 0 12px;display:flex;align-items:center;justify-content:space-between}
+.section-label span{color:var(--muted)}
+.mode-list{display:flex;flex-direction:column;gap:4px;margin-bottom:27px}
+.mode-button{border:1px solid transparent;background:none;padding:11px 9px;text-align:left;display:flex;gap:12px;align-items:center}
+.mode-button .letter{font:10px var(--mono);color:var(--muted)}
+.mode-button b{display:block;font:normal 17px var(--serif)}
+.mode-button small{font:7px var(--mono);color:var(--muted);letter-spacing:.09em;text-transform:uppercase;display:block;margin-top:4px}
+.mode-button.active{border-color:var(--ink);background:var(--ink);color:var(--paper-light)}
+.mode-button.active .letter{color:#bcbfb4}
+.mode-button.active small{color:#bbbdaf}
+.mode-button:not(.active):hover{background:#e8e6dc}
+.layer-list{display:flex;flex-direction:column}
+.layer-toggle{width:100%;border:0;border-bottom:1px solid #dcdcd2;background:none;padding:9px 0;display:flex;align-items:center;text-align:left;gap:9px;font-size:10px}
+.layer-toggle .check{width:11px;height:11px;border:1px solid #9b9e90;display:grid;place-items:center;font-size:8px;line-height:1}
+.layer-toggle[aria-pressed="true"] .check{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.layer-toggle[aria-pressed="false"]{color:#999b90}
+.layer-toggle[aria-pressed="false"] .check{font-size:0}
+.layer-toggle .count{margin-left:auto;color:var(--muted);font:9px var(--mono)}
+.layer-toggle:hover{color:var(--gold)}
+.search-wrap{position:relative;margin-top:22px}
+.search-field{border:0;border-bottom:1px solid #aaa99d;background:transparent;display:flex;align-items:center;gap:7px;padding:8px 0}
+.search-field input{width:100%;min-width:0;outline:none;background:none;border:0;font-size:10px;color:var(--ink)}
+.search-results{position:absolute;left:-5px;right:-5px;top:35px;background:var(--paper-light);border:1px solid var(--line);z-index:25;box-shadow:0 8px 20px #25282212;max-height:230px;overflow:auto}
+.search-results button{border:0;border-bottom:1px solid var(--line);background:none;width:100%;padding:11px;text-align:left;font-size:11px}
+.search-results button:hover{background:#e9e7dd}
+.search-results small{display:block;font:8px var(--mono);color:var(--muted);margin-top:4px}
+.nav-footer{margin-top:auto;padding-top:27px}
+.state-legend{display:grid;grid-template-columns:1fr 1fr;gap:10px 5px;font:7px var(--mono);letter-spacing:.03em}
+.state-dot{width:7px;height:7px;display:inline-block;border-radius:50%;background:var(--ink);border:1px solid var(--ink);margin-right:5px;vertical-align:0}
+.state-dot.predicted{background:var(--blue);border-color:var(--blue)}
+.state-dot.proposed{background:var(--gold);border-color:var(--gold)}
+.state-dot.confirmed{background:var(--paper-light);border-color:#797e70}
+.nav-footer p{font:8px/1.8 var(--mono);color:var(--muted);margin:20px 0 0}
+.center{display:flex;flex-direction:column;min-width:0;min-height:0;position:relative;background:radial-gradient(ellipse at 50% 43%,#fff9 0,transparent 65%),repeating-linear-gradient(0deg,transparent 0 39px,#28291c05 39px 40px),repeating-linear-gradient(90deg,transparent 0 39px,#28291c05 39px 40px)}
+.scene{flex:1;min-height:330px;position:relative;overflow:hidden}
+#viewport{position:absolute;inset:56px 0 33px;cursor:grab;touch-action:none}
+#viewport:active{cursor:grabbing}
+#viewport canvas{display:block;width:100%;height:100%;outline:none}
+.scene-toolbar{position:absolute;top:17px;left:20px;right:20px;display:flex;justify-content:center;align-items:center;gap:8px;z-index:10}
+.view-buttons{display:flex;padding:3px;border:1px solid var(--line);background:#f6f5efdd;backdrop-filter:blur(8px)}
+.view-buttons button{font:8px var(--mono);letter-spacing:.03em;padding:7px 11px;border:0;background:none;white-space:nowrap}
+.view-buttons button.active{background:var(--ink);color:var(--paper-light)}
+.view-buttons button:not(.active):hover{background:#e1e2d6}
+.stage-frame{position:absolute;inset:71px 23px 49px;border:1px solid #bdbfb055;pointer-events:none}
+.stage-frame:before,.stage-frame:after{position:absolute;content:"+";font:16px var(--mono);top:-9px;left:-5px;color:#9b9e90}
+.stage-frame:after{top:auto;left:auto;right:-5px;bottom:-9px}
+.frame-top,.frame-bottom{position:absolute;left:50%;transform:translateX(-50%);background:var(--paper);padding:0 8px;white-space:nowrap;font:7px var(--mono);letter-spacing:.16em;color:#909487}
+.frame-top{top:-5px}
+.frame-bottom{bottom:-5px}
+.scene-corner{position:absolute;left:25px;top:87px;pointer-events:none;font:7px/1.7 var(--mono);letter-spacing:.08em;color:#8c9083}
+.scene-corner.right{right:25px;left:auto;text-align:right}
+.scene-footer{position:absolute;bottom:13px;left:23px;right:23px;display:flex;align-items:center;justify-content:space-between;gap:15px;font:7px var(--mono);letter-spacing:.07em;color:var(--muted);pointer-events:none}
+#live-status{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.scene-help{white-space:nowrap;flex:none}
+.tooltip{position:absolute;pointer-events:none;z-index:14;max-width:240px;background:var(--ink);color:var(--paper-light);padding:9px 11px;opacity:0;transform:translate(-50%,calc(-100% - 14px));box-shadow:0 4px 15px #0002;font-size:10px;white-space:nowrap}
+.tooltip small{display:block;font:7px var(--mono);letter-spacing:.09em;color:#c4c9b8;margin-top:5px}
+.simulation-badge{position:absolute;left:35px;bottom:65px;background:#f8f7f1e8;border-left:2px solid var(--gold);padding:10px 12px;pointer-events:none;z-index:4;max-width:250px}
+.simulation-badge b{display:block;font:8px var(--mono);letter-spacing:.1em;color:var(--gold)}
+.simulation-badge span{display:block;font-size:10px;margin-top:5px}
+.loading{position:absolute;inset:55px 0 33px;z-index:15;background:var(--paper);display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:30px}
+.loading-ring{width:53px;height:53px;border:1px solid var(--line);border-radius:50%;border-top-color:var(--gold);animation:spin 1.5s linear infinite;position:relative;margin-bottom:23px}
+.loading-ring:after{content:"";position:absolute;inset:12px;border:1px solid var(--ink);border-radius:50%}
+.loading h2{font:normal 24px var(--serif);margin:0 0 12px}
+.loading p{font:10px/1.7 var(--mono);color:var(--muted);max-width:380px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.transport{border-top:1px solid var(--line);padding:13px 22px 14px;flex:none;background:#f3f1eaf0}
+.transport-top{display:flex;align-items:center;gap:11px}
+.play-button{display:flex;align-items:center;gap:8px;background:var(--ink);color:var(--paper-light);border:1px solid var(--ink);padding:9px 12px;font:9px var(--mono);min-width:89px}
+.play-button span:first-child{font-size:11px;min-width:10px}
+.transport-label{font:7px var(--mono);letter-spacing:.1em;color:var(--muted);white-space:nowrap}
+.explode-control{display:flex;align-items:center;gap:8px;flex:1;margin:0 5px;max-width:250px}
+.explode-control input{min-width:40px;width:100%;max-width:110px}
+.explode-control output{font:8px var(--mono);width:28px;text-align:right}
+input[type="range"]{accent-color:var(--ink);height:14px;cursor:pointer;margin:0}
+.transport-spacer{flex:1}
+.zoom-controls{display:flex}
+.zoom-controls button{width:28px;height:29px;border:1px solid var(--line);background:transparent;font-size:16px}
+.zoom-controls button+button{border-left:0}
+.zoom-controls button:hover{background:#e3e3d8}
+.reset-button{border:0;background:none;padding:8px 0 8px 5px;display:flex;align-items:center;gap:5px;font:8px var(--mono);white-space:nowrap}
+.reset-button .icon{width:12px;height:12px}
+.timeline{display:flex;align-items:center;gap:12px;border-top:1px solid #dadbd0;padding-top:12px;margin-top:12px}
+.timeline-date{font:7px var(--mono);color:var(--muted);white-space:nowrap;text-transform:uppercase}
+.timeline input{flex:1;width:40px;min-width:40px;height:10px}
+.timeline-time{font:10px var(--mono);white-space:nowrap}
+.timeline-time small{font-size:7px;color:var(--muted)}
+.next-event{border:0;background:none;padding:0;color:var(--muted);display:flex;align-items:center}
+.next-event .icon{width:13px;height:13px}
+.inspector{border-left:1px solid var(--line);padding:25px 22px 18px;background:rgba(250,249,245,.55);display:flex;flex-direction:column}
+.panel-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:25px}
+.entity-glyph{width:35px;height:35px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center}
+#selected-id{font:9px var(--mono);letter-spacing:.1em;color:var(--gold)}
+#selected-name{font:normal 29px/1.08 var(--serif);letter-spacing:-.025em;margin:14px 0 10px;overflow-wrap:anywhere}
+.entity-type{font:7px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;line-height:1.7}
+#selected-description{font-size:10px;line-height:1.75;color:#717568;margin:0 0 17px;min-height:48px}
+.entity-date{font:8px/1.7 var(--mono);padding:9px 0;color:var(--blue);border-top:1px solid var(--line);margin-bottom:15px}
+.state-choices{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:9px 0 18px}
+.state-choices button{font:7px var(--mono);letter-spacing:.02em;text-align:left;border:1px solid var(--line);background:none;padding:8px 7px}
+.state-choices button.active{border-color:var(--ink);background:#e9e9de}
+.propagate{width:100%;padding:12px;justify-content:space-between}
+.impact{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line);padding:17px 0;margin-bottom:22px}
+.impact>div+div{border-left:1px solid var(--line);padding-left:17px}
+.impact b{display:block;font:normal 23px var(--serif)}
+.impact small{font:7px var(--mono);letter-spacing:.04em;color:var(--muted);display:block;margin-top:5px}
+.connection-list{list-style:none;padding:0;margin:0 0 20px;max-height:170px;overflow:auto;scrollbar-width:thin}
+.connection-list li{border-bottom:1px solid #dedfd5}
+.connection-list button{width:100%;border:0;background:none;display:flex;align-items:center;text-align:left;padding:10px 0;gap:8px}
+.connection-list button:hover{color:var(--gold)}
+.connection-list .arrow{font:13px var(--mono);color:var(--gold);flex:none}
+.connection-list .link-name{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:148px}
+.connection-list .link-kind{display:block;font:7px var(--mono);color:var(--muted);margin-top:4px}
+.connection-list .weight{margin-left:auto;font:8px var(--mono);color:var(--muted)}
+.empty{font-size:10px;line-height:1.6;color:var(--muted);padding:10px 0}
+.inspector-foot{margin-top:auto;padding-top:15px;border-top:1px solid var(--ink)}
+.dataset-name{font:normal 16px var(--serif);margin:7px 0 8px}
+.dataset-counts{font:8px var(--mono);color:var(--muted);line-height:1.8;margin-bottom:12px}
+.text-button{border:0;background:none;padding:0;color:var(--ink);font:9px var(--mono);display:inline-flex;gap:6px;align-items:center}
+.mobile-only{display:none}
+.toast{position:fixed;left:50%;bottom:20px;transform:translate(-50%,15px);opacity:0;pointer-events:none;z-index:90;padding:12px 18px;background:var(--ink);color:var(--paper-light);border:1px solid #555d4f;box-shadow:0 6px 25px #0002;font-size:11px;transition:opacity .2s,transform .2s;max-width:calc(100vw - 28px);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(min-width:1550px){.workspace{grid-template-columns:245px minmax(0,1fr) 300px}.navigator{padding:30px 27px}.inspector{padding:29px 27px}}
+@media(max-width:1180px){.workspace{grid-template-columns:minmax(0,1fr) 256px}.navigator{display:none}.navigator.open{display:flex;position:fixed;left:14px;top:100px;bottom:18px;width:256px;background:var(--paper);z-index:35;border:1px solid var(--ink);box-shadow:0 15px 60px #0002}.layers-toggle,.navigator .panel-close{display:inline-flex}.session{display:none}.scene-help{display:none}}
+@media(max-width:820px){.app{min-height:610px}.topbar{height:79px;padding:14px 17px;gap:10px}.brand{gap:11px}.brand h1{font-size:25px}.workspace{grid-template-columns:minmax(0,1fr)}.inspector{display:none}.inspector.open{display:flex;position:fixed;right:14px;bottom:14px;width:min(380px,calc(100vw - 28px));max-height:77dvh;background:var(--paper-light);z-index:35;border:1px solid var(--ink);box-shadow:0 15px 60px #0003}.scene{min-height:330px}}
+@media(max-width:480px){.brand h1{font-size:22px}.brand-mark{display:none}.topbar{padding:13px 15px}.stage-frame{left:16px;right:16px}.scene-corner{left:18px;font-size:6px}.scene-corner.right{right:18px}.scene-footer{left:16px;right:16px;font-size:6.5px}.transport{padding:12px 15px}.play-button{padding:8px 9px;min-width:76px;font-size:8px}.transport-label{font-size:6px;letter-spacing:.02em}.explode-control{max-width:165px;gap:5px;margin:0}.reset-button span{display:none}.timeline-date{font-size:6px}.timeline-time{font-size:9px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+.back-link{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);padding:7px 11px;font-size:9px;font-weight:600;text-decoration:none;color:var(--ink)}
+.back-link:hover{background:#e7e5db;border-color:#aaa99d}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-data" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 4 16 4 16 0V5M4 12v7c0 4 16 4 16 0v-7"/></symbol>
+<symbol id="i-git" viewBox="0 0 24 24"><circle cx="7" cy="5" r="2.5"/><circle cx="7" cy="19" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M7 7.5v9M18 8.5v2a6 6 0 0 1-6 6H7"/></symbol>
+<symbol id="i-full" viewBox="0 0 24 24"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6"/></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></symbol>
+<symbol id="i-node" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="3" r="1.5"/><circle cx="4" cy="18" r="1.5"/><circle cx="20" cy="18" r="1.5"/><path d="M12 4.5v4.5m-2.5 5-4.3 3m9.3-3 4.3 3"/></symbol>
+<symbol id="i-wave" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="6"/><path d="M5 5a10 10 0 0 1 14 14M5 19A10 10 0 0 1 19 5"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></symbol>
+<symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 7M4 4v6h6"/></symbol>
+<symbol id="i-next" viewBox="0 0 24 24"><path d="m7 5 8 7-8 7M19 5v14"/></symbol>
+</svg>
+
+<a class="skip-link" href="#stage-panel">Accéder à l’instrument</a>
+
+<div class="app">
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true"><i></i></div>
+    <div><h1>RIPPLE<span>CIRCLE</span></h1><p>L’horloge architecturale des conséquences</p></div>
+  </div>
+  <div class="header-actions">
+    <a href="/" class="back-link" title="Retour au Ripple 2D">← RETOUR 2D</a>
+    <div class="session"><strong><i class="live-dot"></i>LOCAL-FIRST / ÉDITION 01</strong><small id="storage-status">Données embarquées · sans compte</small></div>
+  </div>
+</header>
+
+<main class="workspace">
+  <aside class="navigator" id="navigator" aria-label="Modes et couronnes">
+    <div class="eyebrow">01 / Instrument vivant</div>
+    <h2 class="nav-title">Tout est<br>relié.</h2>
+    <p class="nav-intro">Le temps, les personnes et les actions partagent une seule mécanique.</p>
+    <div class="section-label">Signature <span>⌘</span></div>
+    <div class="mode-list" id="mode-buttons">
+      <button class="mode-button active" data-mode="instrument"><span class="letter">A</span><span><b>L’instrument</b><small>La mécanique du système</small></span></button>
+      <button class="mode-button" data-mode="connection"><span class="letter">B</span><span><b>Les connexions</b><small>Les dépendances visibles</small></span></button>
+      <button class="mode-button" data-mode="consequence"><span class="letter">C</span><span><b>Les conséquences</b><small>Suivre une propagation</small></span></button>
+    </div>
+    <div class="section-label">Les sept couronnes <span>07</span></div>
+    <div class="layer-list" id="ring-controls"></div>
+    <div class="nav-footer">
+      <div class="state-legend">
+        <span><i class="state-dot"></i>OBSERVED</span>
+        <span><i class="state-dot predicted"></i>PREDICTED</span>
+        <span><i class="state-dot proposed"></i>PROPOSED</span>
+        <span><i class="state-dot confirmed"></i>CONFIRMED</span>
+      </div>
+      <p>Une bille, une identité.<br>Un lien, une dépendance.<br>Une onde, une conséquence.</p>
+    </div>
+  </aside>
+
+  <section class="center" id="stage-panel" tabindex="-1" aria-label="Horloge architecturale 3D interactive">
+    <div class="scene">
+      <div class="scene-toolbar">
+        <div class="view-buttons" id="view-buttons" aria-label="Vues de la caméra">
+          <button class="active" data-view="reset" aria-pressed="true" title="Vue trois-quarts">3/4</button>
+          <button data-view="front" aria-pressed="false">Face</button>
+          <button data-view="side" aria-pressed="false">Profil</button>
+          <button data-view="top" aria-pressed="false">Dessus</button>
+          <button data-view="explode" aria-pressed="false">Éclaté</button>
+        </div>
+        <button id="flip-dos" class="btn small" title="Voir le dos du bijou" style="margin-left:8px">⇅ DOS</button>
+      </div>
+      <div class="stage-frame" aria-hidden="true">
+        <span class="frame-top" id="frame-top">∇   SOLSTICE D’HIVER   ∇</span>
+        <span class="frame-bottom" id="frame-bottom">△   SOLSTICE D’ÉTÉ   △</span>
+      </div>
+      <div class="scene-corner" aria-hidden="true">HORLOGE N° 001<br><span id="mode-caption">MÉCANIQUE ORCHESTRÉE</span></div>
+      <div class="scene-corner right" aria-hidden="true">REPÈRE / XY<br>7 STRATES INDÉPENDANTES</div>
+      <div id="viewport"><div class="tooltip" id="tooltip"><span id="tooltip-name"></span><small id="tooltip-id"></small></div></div>
+      <div class="loading" id="loading">
+        <div class="loading-ring" aria-hidden="true"></div>
+        <h2 id="loading-title">Assemblage de l’instrument</h2>
+        <p id="loading-detail">Géométrie procédurale · matériaux satinés · sept couronnes indépendantes</p>
+      </div>
+      <div class="simulation-badge" id="simulation-badge" hidden><b>ONDE EN PROPAGATION</b><span id="simulation-text"></span></div>
+      <div class="scene-footer">
+        <span id="live-status" role="status">Initialisation de l’instrument…</span>
+        <span class="scene-help">GLISSER : ORBITE   /   COURONNE : ROTATION</span>
+      </div>
+    </div>
+    <div class="transport" aria-label="Lecture et temporalité">
+      <div class="transport-top">
+        <button class="play-button" id="play" aria-label="Mettre en pause le mouvement"><span id="play-icon">Ⅱ</span><span id="play-text">Pause</span></button>
+        <label class="explode-control"><span class="transport-label">ÉCARTEMENT</span><input id="explode-input" type="range" min="0" max="100" value="0" aria-label="Écartement des couronnes"><output id="explode-value">0 %</output></label>
+        <span class="transport-spacer"></span>
+        <div class="zoom-controls"><button id="zoom-out" title="Dézoomer" aria-label="Dézoomer">−</button><button id="zoom-in" title="Zoomer" aria-label="Zoomer">+</button></div>
+        <button class="reset-button" id="reset-view" title="Recentrer la caméra et refermer les couronnes (R)">↺ <span>Recentrer</span></button>
+      </div>
+      <div class="timeline">
+        <span class="timeline-date" id="day-label">21 juin 2025</span>
+        <input type="range" id="timeline-input" min="0" max="1000" step="1" value="250" aria-label="Parcourir la temporalité du projet">
+        <span class="timeline-time"><span id="time-label">10:30</span> <small>UTC · ×240</small></span>
+        <button class="next-event" id="next-event" title="Aller au prochain événement"><svg class="icon"><use href="#i-next"/></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <aside class="inspector" id="inspector" aria-label="Inspecteur d’entité">
+    <div class="panel-heading"><span class="eyebrow">Explorateur d’entité</span></div>
+    <div class="entity-heading"><span id="selected-id">CORE-001</span><div class="entity-glyph" aria-hidden="true"><svg class="icon"><use href="#i-node"/></svg></div></div>
+    <h2 id="selected-name">Noyau identitaire</h2>
+    <div class="entity-type" id="selected-type">CORE · IDENTITÉ</div>
+    <p id="selected-description">Ancre les valeurs, les intentions et la cohérence globale du système.</p>
+    <div class="section-label">État de l’entité</div>
+    <div class="state-choices" id="state-buttons">
+      <button data-state="OBSERVED" aria-pressed="true" class="active"><i class="state-dot"></i>OBSERVED</button>
+      <button data-state="PREDICTED" aria-pressed="false"><i class="state-dot predicted"></i>PREDICTED</button>
+      <button data-state="PROPOSED" aria-pressed="false"><i class="state-dot proposed"></i>PROPOSED</button>
+      <button data-state="CONFIRMED" aria-pressed="false"><i class="state-dot confirmed"></i>CONFIRMED</button>
+    </div>
+    <button class="btn dark propagate" id="propagate"><span>Propager une onde</span><svg class="icon"><use href="#i-wave"/></svg></button>
+    <div class="impact">
+      <div><b id="impact-count">—</b><small>ENTITÉS ATTEINTES</small></div>
+      <div><b id="impact-time">—</b><small>LATENCE MODÈLE</small></div>
+    </div>
+    <div class="section-label">Connexions directes <span id="links-count">00</span></div>
+    <ul class="connection-list" id="connection-list"></ul>
+    <div class="inspector-foot">
+      <div class="eyebrow"><i class="live-dot"></i><span id="source-label">Données embarquées</span></div>
+      <div class="dataset-name" id="dataset-name">Atelier des possibles</div>
+    </div>
+  </aside>
+</main>
+</div>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<script type="module" src="/clock3d/clock.js"></script>
+</body>
+</html>
