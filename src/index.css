@@ -1094,3 +1094,50 @@ input[type="range"].ios-slider {
 @media (prefers-reduced-motion: reduce) {
   .ripple-orbit-button {transition:none;}
 }
+
+
+/* Desktop : conserver le diamètre optimal sans empiéter sur la synthèse causale. */
+@media (min-width: 1280px) {
+  .ripple-stage { min-height: calc(100dvh - 84px); }
+  .ripple-watch-column {
+    width: min(76dvh, calc(100% - 745px), 770px);
+    gap: 8px;
+  }
+  .ripple-orbit-nav { left: -65px; gap: 8px; }
+  .ripple-inspector {
+    width: 356px;
+    max-height: calc(100dvh - 80px);
+  }
+}
+
+/* Tablette / mobile : la cause se lit avant de manipuler le cercle,
+   mais elle n'est rendue qu'une seule fois dans le DOM. */
+@media (max-width: 1279px) {
+  .ripple-stage {
+    align-items: center;
+    gap: 12px;
+  }
+  .ripple-inspector { display: contents; }
+  .ripple-causal-brief {
+    order: 0;
+    width: min(100%, 710px);
+  }
+  .ripple-watch-column { order: 1; }
+  .ripple-inspector > section:not(.ripple-causal-brief),
+  .ripple-inspector > details {
+    order: 2;
+    width: min(100%, 710px);
+    flex-shrink: 0;
+  }
+}
+@media (max-width: 480px) {
+  .ripple-causal-brief { padding: 12px; }
+  .ripple-causal-brief .ripple-causal-flow {
+    grid-template-columns: 60px minmax(0,1fr);
+    column-gap: 6px;
+    row-gap: 6px;
+  }
+  .ripple-orbit-nav { gap: 6px; }
+}
+
+/* Pas de changement de flux DOM : les boutons restent utilisables au clavier. */
