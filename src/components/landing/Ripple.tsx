@@ -40,6 +40,8 @@ import { ActionPanel } from './ActionPanel';
 import { AudioPreview } from './AudioPreview';
 import { ClockDial } from './ClockDial';
 import { InstantInspector } from './InstantInspector';
+import { PublicIncidentDemo } from './PublicIncidentDemo';
+import { type PublicMode, type RepairId } from '../../utils/publicSimulation';
 import { angleAtMinute, minuteAtAngle, momentAt, causalDemoLinks, rolesForPublicIncident, shouldShowPublicCascade, START_MINUTE, END_MINUTE } from '../../utils/publicTimeline';
 import { Scene } from '../../data/orchestra';
 import { usePersistentState } from '../../hooks/usePersistentState';
@@ -253,6 +255,9 @@ export const Ripple: React.FC<RippleProps> = ({
   const [exploreMinute, setExploreMinute] = useState(timeToMinutesFrom17('21:08'));
   const [followDemo, setFollowDemo] = useState(false);
   const draggingTime = useRef(false);
+  const [publicMode, setPublicMode] = useState<PublicMode>('observe');
+  const [publicDelay, setPublicDelay] = useState(10);
+  const [publicPlan, setPublicPlan] = useState<RepairId | null>(null);
 
   // Per-instance unique id for SVG clipPaths (avoids collisions if multiple Ripple instances mount).
   const instanceId = useRef(`r${Math.random().toString(36).slice(2, 8)}`);
@@ -593,7 +598,9 @@ export const Ripple: React.FC<RippleProps> = ({
   const stepFocus = (dir: 1 | -1) => {
     sfx.playBlip(dir > 0 ? 980 : 820, 0.02);
     setTurning(false);
-    if (activeLayer === 'calendar') {
+    if (activeLayer === 'overview' || activeLayer === 'day') {
+      chooseInstant(exploreMinute + dir * 5);
+    } else if (activeLayer === 'calendar') {
       const idx = CAL_MARKERS.findIndex((m) => focus.kind === 'day' && DAY_J_DOY + m.offset === focus.doy);
       const next = CAL_MARKERS[(idx + dir + CAL_MARKERS.length) % CAL_MARKERS.length];
       setFocus({ kind: 'day', doy: DAY_J_DOY + next.offset });
@@ -601,9 +608,6 @@ export const Ripple: React.FC<RippleProps> = ({
       const idx = publicJourney.findIndex((m) => focus.kind === 'journey' && m.id === focus.id);
       const next = publicJourney[(Math.max(idx, 0) + dir + publicJourney.length) % publicJourney.length];
       if (next) setFocus({ kind: 'journey', id: next.id });
-    } else if (activeLayer === 'day') {
-      const idx = DAY_MOMENTS.findIndex((m) => focus.kind === 'moment' && m.id === focus.id);
-      setFocus({ kind: 'moment', id: DAY_MOMENTS[(Math.max(idx, 0) + dir + DAY_MOMENTS.length) % DAY_MOMENTS.length].id });
     } else if (activeLayer === 'memory') {
       const idx = memories.findIndex((m) => focus.kind === 'memory' && m.id === focus.id);
       setFocus({ kind: 'memory', id: memories[(Math.max(idx, 0) + dir + memories.length) % memories.length].id });
@@ -621,6 +625,7 @@ export const Ripple: React.FC<RippleProps> = ({
   /* -------------------------------- Rendu -------------------------------- */
 
   const nowAngle = angleAtMinute(exploreMinute);
+  const causalHighlight = publicMode !== 'observe' || publicCascadeActive;
   const person = focus.kind === 'person' ? personData[focus.id] : null;
   const moment = focus.kind === 'moment' ? DAY_MOMENTS.find((m) => m.id === focus.id) ?? null : null;
   const track = focus.kind === 'track' ? tracks.find((t) => t.id === focus.id) ?? null : null;
@@ -639,6 +644,33 @@ export const Ripple: React.FC<RippleProps> = ({
 
   return (
     <main className="max-w-[1680px] mx-auto px-4 sm:px-6 pt-3 pb-5">
+      <div className="ripple-public-hero" aria-label="Explorer un imprévu fictif">
+        <div className="ripple-public-hero-copy">
+          <p className="ripple-public-kicker">RIPPLECIRCLE · Démonstration</p>
+          <h1>Quand un détail change, voyez tout ce qu’il entraîne.</h1>
+          <p>Simulez les effets, remontez une chaîne explicative et comparez des plans B sur un mariage fictif.</p>
+        </div>
+        <div className="ripple-public-hero-actions" role="group" aria-label="Actions de démonstration">
+          {([
+            { id:'simulate', label:'Simuler un imprévu' },
+            { id:'trace', label:'Trouver la première cause' },
+            { id:'repair', label:'Réparer le planning' }
+          ] as const).map(action => (
+            <button type="button" key={action.id} className="ripple-hero-cta"
+              aria-pressed={publicMode === action.id}
+              onClick={() => {
+                setPublicMode(action.id);
+                setFollowDemo(false);
+                setTurning(false);
+                setExploreMinute(timeToMinutesFrom17('21:08'));
+                setFocus({ kind:'moment',id:'d7' });
+                setPublicPlan(null);
+              }}>{action.label}</button>
+          ))}
+          {publicMode!=='observe' && <button type="button" className="ripple-hero-reset"
+            onClick={() => {setPublicMode('observe');setPublicPlan(null);}}>Fermer</button>}
+        </div>
+      </div>
       {/* Un instrument central : les vues se choisissent autour du cadran. */}
       <div className="ripple-stage">
         <div className="ripple-watch-column">
@@ -705,6 +737,13 @@ export const Ripple: React.FC<RippleProps> = ({
             onPointerDown={(e) => {
               const p = angleFromEvent(e);
               if (!p) return;
+              if (!isBack && p.d >= R.hours - 18 && p.d <= R.hours + 18) {
+                e.preventDefault();
+                draggingTime.current = true;
+                (e.target as Element).setPointerCapture?.(e.pointerId);
+                chooseInstant(minuteAtAngle(p.a));
+                return;
+              }
               // If zoomed in and touching background, enable Pan
               if (zoom > 1.05 && (p.d > R.calOuter + 30 || p.d < R.ring0 - 40)) {
                 panning.current = true;
@@ -743,6 +782,11 @@ export const Ripple: React.FC<RippleProps> = ({
               }
             }}
             onPointerMove={(e) => {
+              if (draggingTime.current) {
+                const p = angleFromEvent(e);
+                if (p) chooseInstant(minuteAtAngle(p.a));
+                return;
+              }
               if (panning.current) {
                 const dx = (e.clientX - panStart.current.x) * ((SIZE + 60) / zoom / 600);
                 const dy = (e.clientY - panStart.current.y) * ((SIZE + 60) / zoom / 600);
@@ -760,6 +804,7 @@ export const Ripple: React.FC<RippleProps> = ({
               }
             }}
             onPointerUp={() => {
+              draggingTime.current = false;
               if (panning.current) panning.current = false;
               if (draggingNeedle.current) {
                 draggingNeedle.current = false;
@@ -768,6 +813,7 @@ export const Ripple: React.FC<RippleProps> = ({
               }
             }}
             onPointerCancel={() => {
+              draggingTime.current = false;
               panning.current = false;
               draggingNeedle.current = false;
             }}
