@@ -1346,16 +1346,20 @@ export const Ripple: React.FC<RippleProps> = ({
           </svg>
 
           {/* ---------- Cœur du cercle : portrait en grand, sans carte ---------- */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {/* Overlay ancré au centre géométrique : l'avatar/disque vert est
+              positionné EXACTEMENT au centre du cercle (top/left:50% + translate -50%),
+              et le bloc nom/titre est placé sous lui. Ainsi le rond central
+              n'est plus décalé vers le haut par la hauteur du texte. */}
+          <div className="absolute inset-0 pointer-events-none">
             <div
               key={JSON.stringify(focus)}
-              className="news-swap flex flex-col items-center text-center px-6"
-              style={{ width: '46%', maxWidth: 340 }}
+              className="news-swap absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center text-center"
+              style={{ width: '31.5%' /* ~2 × centerDiskRatio − petite marge */ }}
             >
               {person && !isBack && (
                 <>
                   <span
-                    className="w-28 h-28 sm:w-36 sm:h-36 rounded-full flex items-center justify-center text-[34px] sm:text-[42px] font-extrabold"
+                    className="w-[72%] max-w-[144px] aspect-square rounded-full flex items-center justify-center text-[28px] sm:text-[38px] font-extrabold shrink-0"
                     style={{
                       background: GROUP_ARC.find((g) => g.id === TABLE_OF[person.id]?.id)?.color ?? INK,
                       color: '#fff',
@@ -1365,10 +1369,10 @@ export const Ripple: React.FC<RippleProps> = ({
                     {person.first.charAt(0)}
                     {person.last.charAt(0)}
                   </span>
-                  <p className="mt-3 text-[22px] font-extrabold tracking-tight leading-tight" style={{ color: INK }}>
+                  <p className="mt-1.5 text-[13px] sm:text-[18px] font-extrabold tracking-tight leading-tight px-1" style={{ color: INK }}>
                     {fullName(person)}
                   </p>
-                  <p className="text-[13px] font-semibold mt-0.5" style={{ color: BODY }}>
+                  <p className="text-[10px] sm:text-[12px] font-semibold mt-0.5 px-1" style={{ color: BODY }}>
                     {person.job}
                   </p>
                 </>
@@ -1378,19 +1382,19 @@ export const Ripple: React.FC<RippleProps> = ({
                   <img
                     src={personPhoto(person.id)}
                     alt=""
-                    className="w-36 h-36 sm:w-44 sm:h-44 rounded-full object-cover"
+                    className="w-[86%] max-w-[172px] aspect-square rounded-full object-cover shrink-0"
                     style={{ boxShadow: '0 10px 32px rgba(0,0,0,0.16)' }}
                   />
-                  <p className="mt-3 text-[22px] font-extrabold tracking-tight leading-tight" style={{ color: INK }}>
+                  <p className="mt-2 text-[13px] sm:text-[18px] font-extrabold tracking-tight leading-tight px-1" style={{ color: INK }}>
                     {fullName(person)}
                   </p>
-                  <p className="text-[13px] font-semibold mt-0.5" style={{ color: BODY }}>
+                  <p className="text-[10px] sm:text-[12px] font-semibold mt-0.5 px-1" style={{ color: BODY }}>
                     {person.job} · {TABLE_OF[person.id]?.name}
                   </p>
                   {person.id === account.profileId ? (
-                    <div className="mt-2.5 flex flex-wrap items-center justify-center gap-1.5 pointer-events-auto">
+                    <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1 pointer-events-auto">
                       <span
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10.5px] font-bold"
                         style={{
                           background:
                             account.rsvp === 'yes'
@@ -1401,7 +1405,7 @@ export const Ripple: React.FC<RippleProps> = ({
                           color: account.rsvp === 'yes' ? '#1E7A39' : account.rsvp === 'no' ? '#C7342B' : '#9A5B00'
                         }}
                       >
-                        {account.rsvp === 'yes' ? `Présent · ${account.partySize} pers.` : account.rsvp === 'no' ? 'Absent' : 'À confirmer'}
+                        {account.rsvp === 'yes' ? `Présent · ${account.partySize}` : account.rsvp === 'no' ? 'Absent' : 'À confirmer'}
                       </span>
                       <button
                         type="button"
@@ -1409,14 +1413,14 @@ export const Ripple: React.FC<RippleProps> = ({
                           sfx.playNodeClick();
                           window.location.hash = 'account';
                         }}
-                        className="pressable px-2.5 py-1 rounded-full text-[11px] font-bold"
+                        className="pressable px-2 py-0.5 rounded-full text-[9px] sm:text-[10.5px] font-bold"
                         style={{ background: INK, color: 'var(--ripple-surface, #fff)' }}
                       >
-                        Mon compte
+                        Compte
                       </button>
                     </div>
                   ) : (
-                    <p className="mt-1.5 text-[12px] font-medium" style={{ color: MUTED }}>
+                    <p className="mt-1 text-[9px] sm:text-[11px] font-medium px-1 line-clamp-2" style={{ color: MUTED }}>
                       {person.seeking}
                     </p>
                   )}
@@ -1424,13 +1428,13 @@ export const Ripple: React.FC<RippleProps> = ({
               )}
               {moment && (
                 <>
-                  <p className="text-[14px] font-extrabold tabular" style={{ color: moment.retard ? '#C7342B' : INK }}>
+                  <p className="text-[12px] sm:text-[14px] font-extrabold tabular" style={{ color: moment.retard ? '#C7342B' : INK }}>
                     {moment.at}{moment.retard ? ` · +${moment.retard} min` : ''}
                   </p>
-                  <p className="mt-1 text-[21px] font-extrabold leading-tight" style={{ color: INK }}>
+                  <p className="mt-1 text-[15px] sm:text-[20px] font-extrabold leading-tight px-1" style={{ color: INK }}>
                     {moment.title}
                   </p>
-                  <p className="text-[14px] font-semibold mt-0.5" style={{ color: BODY }}>
+                  <p className="text-[11px] sm:text-[13px] font-semibold mt-0.5 px-1" style={{ color: BODY }}>
                     {moment.lieu}
                   </p>
                 </>
@@ -1438,51 +1442,51 @@ export const Ripple: React.FC<RippleProps> = ({
               {track && (
                 <>
                   <span
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-[26px] sm:text-[30px] font-black mt-1"
+                    className="w-[55%] max-w-[110px] aspect-square rounded-full flex items-center justify-center text-[22px] sm:text-[28px] font-black shrink-0"
                     style={{ background: SETS[track.set].color, color: '#fff' }}
                   >
                     ♪
                   </span>
-                  <p className="mt-2 text-[20px] font-extrabold leading-tight" style={{ color: INK }}>
+                  <p className="mt-2 text-[14px] sm:text-[18px] font-extrabold leading-tight px-1" style={{ color: INK }}>
                     {track.title}
                   </p>
-                  <p className="text-[14px] font-semibold" style={{ color: BODY }}>
+                  <p className="text-[11px] sm:text-[13px] font-semibold px-1" style={{ color: BODY }}>
                     {track.artist}
                   </p>
-                  <p className="text-[12.5px] font-medium mt-0.5" style={{ color: MUTED }}>
-                    {fmt(track.start)} · proposé par {NET_BY_ID[track.by]?.first}
+                  <p className="text-[10px] sm:text-[12px] font-medium mt-0.5 px-1" style={{ color: MUTED }}>
+                    {fmt(track.start)} · {NET_BY_ID[track.by]?.first}
                   </p>
                 </>
               )}
               {media && (
                 <>
                   <span
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-[15px] font-black mt-1"
+                    className="w-[55%] max-w-[110px] aspect-square rounded-full flex items-center justify-center text-[13px] sm:text-[15px] font-black shrink-0"
                     style={{ background: MEDIA_TYPE_META[media.type].color, color: '#fff' }}
                   >
                     {MEDIA_TYPE_META[media.type].label.charAt(0)}
                   </span>
-                  <p className="mt-2 text-[14px] font-bold leading-snug line-clamp-2" style={{ color: INK }}>
+                  <p className="mt-2 text-[12px] sm:text-[14px] font-bold leading-snug line-clamp-2 px-1" style={{ color: INK }}>
                     {media.legend}
                   </p>
-                  <p className="text-[12px] font-medium" style={{ color: MUTED }}>
+                  <p className="text-[10px] sm:text-[12px] font-medium px-1" style={{ color: MUTED }}>
                     {media.at} · {fullName(NET_BY_ID[media.author])}
                   </p>
                 </>
               )}
               {dayFocus !== null && (
                 <>
-                  <p className="text-[12px] font-extrabold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+                  <p className="text-[10px] sm:text-[12px] font-extrabold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
                     Calendrier {YEAR}
                   </p>
-                  <p className="mt-1 text-[21px] font-extrabold leading-tight" style={{ color: INK }}>
+                  <p className="mt-1 text-[15px] sm:text-[20px] font-extrabold leading-tight px-1" style={{ color: INK }}>
                     {new Date(YEAR, 0, dayFocus + 1).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
                   </p>
                   {(() => {
                     const mk = CAL_MARKERS.find((m) => DAY_J_DOY + m.offset === dayFocus);
                     const diff = DAY_J_DOY - dayFocus;
                     return (
-                      <p className="mt-1 text-[13px] font-medium" style={{ color: BODY }}>
+                      <p className="mt-1 text-[11px] sm:text-[13px] font-medium px-1" style={{ color: BODY }}>
                         {mk ? `${mk.label} · ${mk.detail}` : diff > 0 ? `J-${diff} avant le mariage` : diff < 0 ? `J+${-diff} après le mariage` : ''}
                       </p>
                     );
@@ -1492,17 +1496,17 @@ export const Ripple: React.FC<RippleProps> = ({
               {journeySel && (
                 <>
                   <span
-                    className="w-14 h-14 rounded-full mt-1"
+                    className="w-[45%] max-w-[90px] aspect-square rounded-full shrink-0"
                     style={{ background: JOURNEY_COLORS[journeySel.kind] ?? '#8e8e93' }}
                   />
-                  <p className="mt-3 text-[13px] font-bold tabular" style={{ color: MUTED }}>
+                  <p className="mt-2 text-[11px] sm:text-[13px] font-bold tabular px-1" style={{ color: MUTED }}>
                     {new Date(`${journeySel.date}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
-                  <p className="mt-1 text-[21px] font-extrabold leading-tight" style={{ color: INK }}>
+                  <p className="mt-1 text-[15px] sm:text-[20px] font-extrabold leading-tight px-1" style={{ color: INK }}>
                     {journeySel.title}
                   </p>
                   {journeySel.detail && (
-                    <p className="mt-1 text-[13px] leading-snug line-clamp-2" style={{ color: BODY }}>
+                    <p className="mt-1 text-[11px] sm:text-[13px] leading-snug line-clamp-2 px-1" style={{ color: BODY }}>
                       {journeySel.detail}
                     </p>
                   )}
