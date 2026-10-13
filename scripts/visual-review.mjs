@@ -98,6 +98,7 @@ try {
     if (!await page.getByText('00:18', { exact: true }).count()) findings.push({size:size.id,kind:'scenario-18-failed'});
     await hero.getByRole('button',{name:'Réparer le planning'}).click();
     if (await page.locator('.ripple-repair-option').count() !== 3) findings.push({size:size.id,kind:'repair-options-missing'});
+    await page.screenshot({ path: OUTPUT + '/' + size.id + '-repair.png', fullPage: true, animations: 'disabled', timeout: 15000 });
     await page.locator('.ripple-repair-option').first().click();
     if (!await page.getByText(/Plan sélectionné dans la simulation/).count()) findings.push({size:size.id,kind:'repair-selection-failed'});
     await hero.getByRole('button',{name:'Trouver la première cause'}).click();

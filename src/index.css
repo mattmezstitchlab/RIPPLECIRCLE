@@ -1282,3 +1282,6 @@ input[type="range"].ios-slider {
 @media(prefers-reduced-motion:reduce){
   .ripple-causal-path,.ripple-causal-node,.ripple-causal-person {animation:none!important;}
 }
+
+/* V3 final : lisibilité des rôles dans la chaîne de conséquences. */
+.ripple-effects-list li span { margin-right: 7px; }
