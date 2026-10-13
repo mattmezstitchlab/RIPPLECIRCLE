@@ -12,11 +12,10 @@ export function timeToMinutesFrom17(time: string): number {
 }
 
 export function minutesFrom17ToTime(totalMin: number): string {
-  const clamped = Math.max(0, Math.min(660, totalMin));
-  let rawHours = Math.floor(clamped / 60) + 17;
-  const mins = Math.floor(clamped % 60);
-  if (rawHours >= 24) rawHours -= 24;
-  return `${String(rawHours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+  const absolute = ((17 * 60 + Math.floor(totalMin)) % 1440 + 1440) % 1440;
+  const hours = Math.floor(absolute / 60);
+  const mins = absolute % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 }
 
 export function clamp01(n: number): number {

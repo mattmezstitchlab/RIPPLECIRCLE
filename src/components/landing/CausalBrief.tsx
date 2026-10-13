@@ -28,8 +28,10 @@ export const CausalBrief: React.FC<Props> = ({ incident, onSelect }) => {
       <div className="ripple-causal-flow" aria-label="Cause, conséquences et plan B">
         <span className="ripple-causal-marker">Cause</span>
         <p className="text-[12px] leading-snug line-clamp-2">{incident.cause ?? 'Événement identifié'}</p>
-        <span className="ripple-causal-marker">Effets · {impactCount}</span>
-        <p className="text-[12px] leading-snug">{incident.impacts?.slice(0, 2).map(i => i.role).join(' · ') || 'Aucun impact documenté'}</p>
+        <span className="ripple-causal-marker">Effets</span>
+        <p className="text-[12px] leading-snug">{impactCount > 0
+          ? `${impactCount} impacts · ${incident.impacts?.slice(0, 2).map(i => i.role === 'dj' ? 'DJ' : i.role).join(' · ')}`
+          : 'Aucun impact documenté'}</p>
         <span className="ripple-causal-marker">Plan B</span>
         <p className="text-[12px] leading-snug line-clamp-2">{incident.planB ?? 'À confirmer'}</p>
       </div>

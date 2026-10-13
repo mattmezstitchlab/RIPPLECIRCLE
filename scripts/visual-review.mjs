@@ -76,7 +76,7 @@ try {
         bodyBackground: getComputedStyle(document.body).backgroundColor,
         inspectorOverflow: q('.ripple-inspector') ? getComputedStyle(q('.ripple-inspector')).overflowY : '',
         circleCenterDelta: dial ? +((dial.x + dial.width / 2) - innerWidth / 2).toFixed(1) : null,
-        causeInitiallyVisible: cause ? cause.top < innerHeight && cause.bottom > 0 : null
+        causeInitiallyVisible: cause ? cause.y < innerHeight && cause.bottom > 0 : null
       };
     });
     if (pageErrors.length) findings.push({ size: size.id, kind: 'console-errors', errors: pageErrors });
@@ -99,6 +99,7 @@ try {
       await page.getByRole('button', { name: /Affichage/ }).click();
       await page.getByRole('button', { name: /Mode nuit/ }).click();
       await page.getByRole('button', { name: 'Retour au Ripple' }).click();
+      await page.waitForTimeout(2800); // ne pas capturer le toast temporaire
       await page.screenshot({ path: OUTPUT + '/mobile-390-night.png', fullPage: true, animations: 'disabled', timeout: 15000 });
     }
     console.log('VISUAL_QA ' + JSON.stringify({ id: size.id, ...result, pageErrors }));

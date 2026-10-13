@@ -764,7 +764,7 @@ export const Ripple: React.FC<RippleProps> = ({
                         fontWeight={isOct ? 800 : 700}
                         fill={isOct ? INK : MUTED}
                         style={{ paintOrder: 'stroke' }}
-                        stroke="#fff"
+                        stroke="var(--ripple-surface, #ffffff)"
                         strokeWidth={3}
                       >
                         {label}
@@ -884,8 +884,8 @@ export const Ripple: React.FC<RippleProps> = ({
                             width={44 * fontMult}
                             height={20 * fontMult}
                             rx={10 * fontMult}
-                            fill="#ffffff"
-                            stroke="rgba(0,0,0,0.12)"
+                            fill="var(--ripple-surface, #ffffff)"
+                            stroke="var(--ripple-line, rgba(0,0,0,0.12))"
                             strokeWidth={1}
                           />
                           <text
@@ -1067,7 +1067,7 @@ export const Ripple: React.FC<RippleProps> = ({
                         const a = g.a0 + (i + 1) * STEP;
                         const p1 = polar(R.tables - 12, a);
                         const p2 = polar(R.tables - 1, a);
-                        return <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#fff" strokeWidth={2} />;
+                        return <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="var(--ripple-surface, #ffffff)" strokeWidth={2} />;
                       })}
                       <g>
                         <rect
@@ -1076,7 +1076,7 @@ export const Ripple: React.FC<RippleProps> = ({
                           width={76 * fontMult}
                           height={22 * fontMult}
                           rx={11 * fontMult}
-                          fill="#ffffff"
+                          fill="var(--ripple-surface, #ffffff)"
                           stroke={g.color}
                           strokeWidth={on ? 2 : 1}
                         />
