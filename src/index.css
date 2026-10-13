@@ -1,0 +1,928 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
+  --color-ios-bg: #000000;
+  --color-ios-elevated: #1c1c1e;
+  --color-ios-grouped: #2c2c2e;
+  --color-ios-fill: #3a3a3c;
+  --color-label: #f5f5f7;
+  --color-secondary: rgba(235, 235, 245, 0.6);
+  --color-tertiary: rgba(235, 235, 245, 0.3);
+  --color-system-green: #30d158;
+  --color-system-red: #ff453a;
+  --color-system-orange: #ff9f0a;
+  --color-system-yellow: #ffd60a;
+  --color-system-blue: #0a84ff;
+  --color-system-indigo: #5e5ce6;
+  --color-system-purple: #bf5af2;
+  --color-system-teal: #64d2ff;
+  --color-system-pink: #ff375f;
+  --color-ultra-orange: #ff5a1f;
+  --color-separator: rgba(84, 84, 88, 0.65);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    background: #000;
+    color: #f5f5f7;
+    min-height: 100%;
+  }
+
+  body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "ss01" 1;
+}
+
+.watch-time {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Compact Rounded", "SF Pro Display", sans-serif;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+}
+
+.hairline {
+  border-color: rgba(84, 84, 88, 0.65);
+}
+
+.ios-material {
+  background: rgba(28, 28, 30, 0.86);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+}
+
+.ios-material-thick {
+  background: rgba(22, 22, 24, 0.92);
+  backdrop-filter: blur(50px) saturate(190%);
+  -webkit-backdrop-filter: blur(50px) saturate(190%);
+}
+
+.ios-group {
+  background: #1c1c1e;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.ios-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  min-height: 44px;
+  background: #1c1c1e;
+  border-bottom: 0.5px solid rgba(84, 84, 88, 0.55);
+}
+
+.ios-row:last-child {
+  border-bottom: none;
+}
+
+.ios-row:active {
+  background: #2c2c2e;
+}
+
+.pressable {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease;
+}
+
+.pressable:active {
+  transform: scale(0.97);
+  opacity: 0.88;
+}
+
+/* Studio lighting behind the watch — Apple product page */
+.studio-bg {
+  background:
+    radial-gradient(ellipse 52% 38% at 50% 42%, rgba(90, 72, 58, 0.28), transparent 62%),
+    radial-gradient(ellipse 30% 22% at 50% 78%, rgba(255, 90, 31, 0.07), transparent 70%),
+    #000;
+}
+
+/* Ocean band ribs */
+.ocean-ribs {
+  background-image: repeating-linear-gradient(
+    180deg,
+    #ff6a3d 0px,
+    #e24a1c 3px,
+    #c43b14 4px,
+    #ff6a3d 9px
+  );
+}
+
+.titanium {
+  background: linear-gradient(
+    180deg,
+    #e7e8ea 0%,
+    #b8bcc1 14%,
+    #8d9298 38%,
+    #6e7378 50%,
+    #8d9298 62%,
+    #c2c5c9 86%,
+    #ececee 100%
+  );
+}
+
+.crown-flutes {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #d7dbe0 0px,
+    #9aa1a8 1.5px,
+    #f2f4f6 2.5px,
+    #d7dbe0 4px
+  );
+}
+
+/* Watch glass reflection */
+.watch-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.09) 0%,
+    rgba(255, 255, 255, 0.03) 28%,
+    transparent 48%
+  );
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Always-on dim */
+.aod {
+  filter: saturate(0.7) brightness(0.55);
+}
+
+@keyframes crown-nudge {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-3px); }
+  70% { transform: translateY(2px); }
+}
+
+.animate-crown-nudge {
+  animation: crown-nudge 1.6s ease-in-out 2;
+}
+
+@keyframes ring-breathe {
+  0%, 100% { opacity: 0.95; }
+  50% { opacity: 1; }
+}
+
+@keyframes island-in {
+  from {
+    transform: translateX(-50%) translateY(-12px) scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.island-enter {
+  animation: island-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(18%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.sheet-enter {
+  animation: sheet-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-enter {
+  animation: fade-in 280ms ease both;
+}
+
+@keyframes dial-in {
+  from {
+    opacity: 0;
+    transform: scale(0.965);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.dial-swap {
+  animation: dial-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes flash-row {
+  0% {
+    background: #1c1c1e;
+  }
+  25% {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  100% {
+    background: #1c1c1e;
+  }
+}
+
+.row-stagger {
+  animation: row-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+.flash-row {
+  animation:
+    row-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    flash-row 1.4s ease 120ms both;
+}
+
+@keyframes soft-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.soft-spin {
+  animation: soft-spin 90s linear infinite;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.4);
+  }
+}
+
+.pulse-soft {
+  animation: pulse-soft 2.2s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* iOS slider */
+input[type="range"].ios-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: #3a3a3c;
+  outline: none;
+}
+
+input[type="range"].ios-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), 0 0 0 0.5px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+}
+
+input[type="range"].ios-slider::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+/* Curseur de temps intégré à la première portée de la partition. */
+input[type="range"].score-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 26px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+
+/* Le rail horizontal est sur la règle au-dessus des portées. */
+input[type="range"].score-range-ruler {
+  bottom: -13px;
+}
+
+input[type="range"].score-range::-webkit-slider-runnable-track {
+  height: 2px;
+  background: transparent;
+}
+
+input[type="range"].score-range::-moz-range-track {
+  height: 2px;
+  background: transparent;
+}
+
+input[type="range"].score-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -6px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: #1d1d1f;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.35);
+  cursor: ew-resize;
+}
+
+input[type="range"].score-range::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: #1d1d1f;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.35);
+  cursor: ew-resize;
+}
+
+input[type="range"].score-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.28), 0 1px 5px rgba(0, 0, 0, 0.25);
+}
+
+input[type="range"].score-range:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.28), 0 1px 5px rgba(0, 0, 0, 0.25);
+}
+
+/* Hide ugly scrollbars on watch lists */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Respect des préférences d'accessibilité (comme sur iOS) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- Page d'accueil façon apple.com ---------- */
+.h-display {
+  font-size: clamp(54px, 9vw, 124px);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  font-weight: 700;
+}
+
+.h-section {
+  font-size: clamp(40px, 5.6vw, 72px);
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+}
+
+.eyebrow {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: #0071e3;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 500;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: #0077ed;
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-link {
+  font-size: 17px;
+  color: #2997ff;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+@keyframes hero-zoom {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.animate-hero {
+  animation: hero-zoom 2.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Révélation au défilement */
+.reveal {
+  opacity: 0;
+  transform: translateY(36px);
+  transition: opacity 1000ms cubic-bezier(0.22, 1, 0.36, 1), transform 1000ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------- Carrousel du hero ---------- */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+.slide-in {
+  animation: slide-in 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes progress-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.progress-bar {
+  transform-origin: left center;
+  animation-name: progress-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes halo-breathe {
+  0%,
+  100% {
+    transform: translateY(-50%) scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(-50%) scale(1.07);
+    opacity: 1;
+  }
+}
+
+.halo {
+  transform: translateY(-50%);
+  animation: halo-breathe 7s ease-in-out infinite;
+}
+
+/* Coches animées dans la carte Checklist */
+.tick {
+  border: 2px solid #d2d2d7;
+  background: transparent;
+  transition: background-color 600ms ease, border-color 600ms ease;
+}
+
+.reveal.in .tick {
+  background: #30d158;
+  border-color: #30d158;
+}
+
+.tick-icon {
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 500ms ease, transform 700ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Anneau qui se propage quand une notification met le cadran à jour */
+@keyframes update-ring {
+  from {
+    opacity: 0.85;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+.update-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: update-ring 1.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes score-pulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  35% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+/* Égaliseur animé du morceau en cours (playlist) */
+@keyframes eq-bounce {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.eq-bar {
+  display: inline-block;
+  width: 2.5px;
+  height: 10px;
+  border-radius: 1px;
+  transform-origin: bottom;
+  animation: eq-bounce 0.9s ease-in-out infinite;
+}
+
+.eq-bar:nth-child(2) {
+  animation-delay: -0.3s;
+}
+
+.eq-bar:nth-child(3) {
+  animation-delay: -0.6s;
+}
+
+.eq-paused .eq-bar {
+  animation-play-state: paused;
+}
+
+.score-pulse {
+  animation: score-pulse 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  pointer-events: none;
+}
+
+/* Actualité d'un cadran : le texte entre en glissant */
+@keyframes news-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.news-swap {
+  animation: news-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Retournement cadran ⇄ table */
+.flip-inner {
+  transform-style: preserve-3d;
+  transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.flip-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flip-back {
+  transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-inner {
+    transition: none;
+  }
+}
+
+/* Halo de couleur derrière un cadran qui reçoit une mise à jour */
+@keyframes halo-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+.halo-flash {
+  animation: halo-flash 2200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  pointer-events: none;
+}
+
+/* Anneau de portraits qui tourne — les portraits restent droits */
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.orbit-spin {
+  animation: orbit-spin 70s linear infinite;
+}
+
+.orbit-counter {
+  animation: orbit-spin 70s linear infinite reverse;
+  position: absolute;
+}
+
+.reveal.in .tick-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ---------- Thème clair : fond blanc, encre sombre (couche finale) ---------- */
+html,
+body,
+#root {
+  background: #ffffff;
+  color: #1d1d1f;
+}
+
+.ios-group {
+  background: #ffffff;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.ios-row {
+  background: #ffffff;
+  color: #1d1d1f;
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.08);
+}
+
+.ios-row:active {
+  background: #f5f5f7;
+}
+
+input[type="range"].ios-slider {
+  background: #d2d2d7;
+}
+
+/* Le flash d'une ligne reste clair (il était sombre) */
+@keyframes flash-row {
+  0% {
+    background: #ffffff;
+  }
+  25% {
+    background: #eef0f3;
+  }
+  100% {
+    background: #ffffff;
+  }
+}
+
+/* Contraste AA : les gris trop pâles sur blanc sont relevés (≥ 4.5:1) */
+.text-black\/30,
+.text-black\/35,
+.text-black\/40,
+.text-black\/45 {
+  color: #6e6e73 !important;
+}
+
+.text-black\/50 {
+  color: #515154 !important;
+}
+
+.text-black\/55 {
+  color: #48484c !important;
+}
+
+/* Gris clairs « blanc sur fond sombre » devenus illisibles sur blanc */
+.text-white\/20 {
+  color: #8e8e93 !important;
+}
+
+.text-white\/35,
+.text-white\/40,
+.text-white\/45 {
+  color: #6e6e73 !important;
+}
+
+.text-white\/60,
+.text-white\/65,
+.text-white\/80 {
+  color: #424245 !important;
+}
+
+::selection {
+  background: rgba(10, 132, 255, 0.35);
+  color: #fff;
+}
+
+/* ---------- Ripple : thèmes jour / nuit ---------- */
+.theme-day {
+  --ripple-ink: #1d1d1f;
+  --ripple-muted: #515154;
+  --ripple-body: #1d1d1f;
+  --ripple-surface: #ffffff;
+  --ripple-soft: rgba(0, 0, 0, 0.05);
+  --account-field: #f2f2f7;
+  --account-line: rgba(0, 0, 0, 0.12);
+  background: #ffffff;
+  color: #1d1d1f;
+}
+
+.theme-night {
+  --ripple-ink: #f5f5f7;
+  --ripple-muted: #b3b3ba;
+  --ripple-body: #e2e2e8;
+  --ripple-surface: #141418;
+  --ripple-soft: rgba(255, 255, 255, 0.08);
+  --account-field: #1c1c21;
+  --account-line: rgba(255, 255, 255, 0.14);
+  background: #0b0b0d;
+  color: #f5f5f7;
+  color-scheme: dark;
+}
+
+.ripple-header {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #1d1d1f;
+}
+
+.theme-night .ripple-header {
+  background: rgba(11, 11, 13, 0.92);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f5f5f7;
+}
+
+.ripple-icon-button {
+  background: rgba(0, 0, 0, 0.05);
+  color: #1d1d1f;
+}
+
+.theme-night .ripple-icon-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f5f5f7;
+}
+
+.account-field {
+  width: 100%;
+  height: 2.75rem;
+  border-radius: 11px;
+  background: var(--account-field, #f2f2f7);
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ripple-ink, #1d1d1f);
+  outline: none;
+}
+
+.account-field:focus-visible {
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.4);
+}
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ripple-muted, #515154);
+  margin-bottom: 0.25rem;
+}
+
+/* Surfaces codées en dur repassées en nuit */
+.theme-night .bg-white {
+  background-color: #17171b !important;
+}
+
+.theme-night [class*="bg-[#fcfcfd]"] {
+  background-color: #141418 !important;
+}
+
+.theme-night [class*="bg-[#f5f5f7]"] {
+  background-color: #1b1b1f !important;
+}
+
+.theme-night [class*="border-black"] {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+.theme-night [class*="text-black"] {
+  color: #f5f5f7 !important;
+}
+
+.theme-night [class*="text-[#1d1d1f]"] {
+  color: #f5f5f7 !important;
+}
+
+.theme-night [class*="text-[#424245]"] {
+  color: #c9c9cf !important;
+}
+
+.theme-night [class*="text-[#6e6e73]"],
+.theme-night [class*="text-[#515154]"] {
+  color: #b3b3ba !important;
+}
+
+/* ---------- Ripple : retournement Face A / Face B ---------- */
+@keyframes rippleFlipOut {
+  from {
+    transform: perspective(1800px) rotateY(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: perspective(1800px) rotateY(88deg);
+    opacity: 0.35;
+  }
+}
+
+@keyframes rippleFlipIn {
+  from {
+    transform: perspective(1800px) rotateY(-88deg);
+    opacity: 0.35;
+  }
+  to {
+    transform: perspective(1800px) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+.ripple-flip-out {
+  animation: rippleFlipOut 0.26s ease-in both;
+}
+
+.ripple-flip-in {
+  animation: rippleFlipIn 0.32s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple-flip-out,
+  .ripple-flip-in {
+    animation: none;
+  }
+}
