@@ -1,6 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle,
+  CalendarDays,
+  Camera,
+  Clock3,
+  Layers,
+  Music2,
+  Users,
   BellRing,
   Network,
   Pause,
@@ -33,6 +38,8 @@ import type { AccountState, JourneyMilestone } from '../../data/account';
 import { DocSheet } from './DocSheet';
 import { ActionPanel } from './ActionPanel';
 import { AudioPreview } from './AudioPreview';
+import { ClockDial } from './ClockDial';
+import { CausalBrief } from './CausalBrief';
 import { Scene } from '../../data/orchestra';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { useReactiveOrchestra } from '../../engine/orchestra/useReactiveOrchestra';
@@ -184,6 +191,16 @@ const photoOf = (account: AccountState, id: string) =>
 
 export type RippleLayer = 'overview' | 'calendar' | 'journey' | 'day' | 'memory' | 'playlist' | 'people';
 
+const ORBIT: { id: RippleLayer; label: string; color: string; icon: React.ElementType; hash: string }[] = [
+  { id: 'overview', label: 'Causalité', color: '#FF9F0A', icon: Layers, hash: '' },
+  { id: 'calendar', label: 'Calendrier', color: '#0A84FF', icon: CalendarDays, hash: 'calendar' },
+  { id: 'journey', label: 'Parcours', color: '#BF5AF2', icon: Clock3, hash: 'journey' },
+  { id: 'day', label: 'Moments du jour J', color: '#FF453A', icon: Clock3, hash: 'day' },
+  { id: 'memory', label: 'Souvenirs', color: '#30D158', icon: Camera, hash: 'memory' },
+  { id: 'playlist', label: 'Musique', color: '#5E5CE6', icon: Music2, hash: 'playlist' },
+  { id: 'people', label: 'Personnes et relations', color: '#0A84FF', icon: Users, hash: 'people' }
+];
+
 type Focus =
   | { kind: 'person'; id: string }
   | { kind: 'moment'; id: string }
@@ -230,8 +247,8 @@ export const Ripple: React.FC<RippleProps> = ({
   const reduceMotion =
     typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const [angle, setAngle] = useState(ANGLE[ORDER[0]]);
-  const [turning, setTurning] = useState(!reduceMotion && activeLayer !== 'calendar');
-  const [focus, setFocus] = useState<Focus>({ kind: 'person', id: ORDER[0] });
+  const [turning, setTurning] = useState(false);
+  const [focus, setFocus] = useState<Focus>({ kind: 'moment', id: 'd7' });
 
   // Per-instance unique id for SVG clipPaths (avoids collisions if multiple Ripple instances mount).
   const instanceId = useRef(`r${Math.random().toString(36).slice(2, 8)}`);
@@ -374,7 +391,7 @@ export const Ripple: React.FC<RippleProps> = ({
   // Layer change focus synchronization
   useEffect(() => {
     setTurning(false);
-    if (activeLayer === 'people' || activeLayer === 'overview') {
+    if (activeLayer === 'people') {
       setFocus((f) => (f.kind === 'person' ? f : { kind: 'person', id: account.profileId }));
       if (activeLayer === 'people' && !reduceMotion) setTurning(true);
     } else if (activeLayer === 'calendar') setFocus({ kind: 'day', doy: DAY_J_DOY });
@@ -582,187 +599,38 @@ export const Ripple: React.FC<RippleProps> = ({
   const scrubValue = Math.max(ORCH_START, Math.min(ORCH_END, minutes));
 
   return (
-    <main className="max-w-[1440px] mx-auto px-4 sm:px-6 pt-5 pb-16">
-      {/* ===== Zone 1 · Maintenant & Régie ===== */}
-      <section
-        aria-label="Maintenant"
-        className="grid items-center gap-x-8 gap-y-4 border-b border-black/[0.1] pb-5 md:grid-cols-[220px_minmax(0,1fr)_300px]"
-      >
-        <div>
-          <Eyebrow>Temps de la régie</Eyebrow>
-          <div className="mt-1 flex items-baseline gap-3">
-            <span className="watch-time text-[46px] font-bold" style={{ color: INK }}>{fmt(minutes)}</span>
-            <button
-              type="button"
-              onClick={() => {
-                sfx.playNodeClick();
-                if (manual) onResume();
-                else onToggle();
-              }}
-              className="pressable inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-bold shadow-sm"
-              style={manual ? { background: '#0071e3', color: '#fff' } : { background: 'rgba(0,0,0,0.06)', color: INK }}
-            >
-              {live ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              {manual ? 'Direct' : paused ? 'Reprendre' : 'Pause'}
-            </button>
-          </div>
-          <input
-            type="range"
-            min={ORCH_START}
-            max={ORCH_END}
-            step={1}
-            value={scrubValue}
-            aria-label="Temps de la régie (fenêtre pilotable 21:00 – 21:56)"
-            className="ios-slider mt-2.5 h-2"
-            style={{
-              background: `linear-gradient(to right, ${INK} ${((scrubValue - ORCH_START) / (ORCH_END - ORCH_START)) * 100}%, #d2d2d7 ${((scrubValue - ORCH_START) / (ORCH_END - ORCH_START)) * 100}%)`
-            }}
-            onChange={(e) => onScrub(Number(e.target.value))}
-          />
-        </div>
-
-        <div className="min-w-0">
-          <Eyebrow>En ce moment</Eyebrow>
-          {nowTrack ? (
-            <button
-              type="button"
-              onClick={() => choose({ kind: 'track', id: nowTrack.id })}
-              className="mt-1.5 flex items-center gap-3 min-w-0 text-left group"
-            >
-              <img
-                src={personPhoto(nowTrack.by)}
-                alt=""
-                className="w-11 h-11 rounded-full object-cover shrink-0 transition-transform group-hover:scale-105"
-                style={{ boxShadow: `0 0 0 2.5px ${SETS[nowTrack.set].color}` }}
-              />
-              <span className="min-w-0">
-                <span className="block text-[16px] font-bold tracking-tight truncate" style={{ color: INK }}>
-                  ♪ {nowTrack.title} <span className="font-normal" style={{ color: MUTED }}>— {nowTrack.artist}</span>
-                </span>
-                <span className="block text-[13px] font-medium truncate" style={{ color: MUTED }}>
-                  proposé par {fullName(NET_BY_ID[nowTrack.by])} · {SETS[nowTrack.set].label}
-                </span>
-              </span>
-            </button>
-          ) : (
-            <p className="mt-1.5 text-[14px]" style={{ color: MUTED }}>Pas de morceau à cette heure.</p>
-          )}
-          {scene && (
-            <p key={scene.id} className="news-swap mt-1.5 text-[13px] font-medium truncate" style={{ color: BODY }}>
-              <span className="font-bold tabular" style={{ color: INK }}>Régie {scene.at}</span> · {scene.headline}
-              <span className="tabular" style={{ color: MUTED }}> · marge +{slack} min · stabilité {stability} %</span>
-            </p>
-          )}
-        </div>
-
-        <div className="min-w-0">
-          <Eyebrow>Prochain signal sonore</Eyebrow>
-          {nextSignal?.signal ? (
-            <button type="button" onClick={() => choose({ kind: 'track', id: nextSignal.id })} className="mt-1.5 text-left min-w-0 block group">
-              <span className="flex items-center gap-2 text-[15px] font-bold truncate group-hover:text-[#0066cc]" style={{ color: INK }}>
-                <BellRing className="w-4 h-4 shrink-0 text-[#E6A100]" /> {nextSignal.signal.label} · {fmt(nextSignal.start)}
-              </span>
-              <span className="block text-[12.5px] font-medium truncate mt-0.5" style={{ color: MUTED }}>
-                quand vous entendrez « {nextSignal.title} »
-              </span>
-            </button>
-          ) : (
-            <p className="mt-1.5 text-[14px]" style={{ color: MUTED }}>Plus de signal programmé.</p>
-          )}
-        </div>
-      </section>
-
-      {/* ===== Recto / verso + zoom ===== */}
-      <div className="mt-4 flex items-center justify-between gap-3">
+    <main className="max-w-[1680px] mx-auto px-4 sm:px-6 pt-3 pb-5">
+      {/* Un instrument central : les vues se choisissent autour du cadran. */}
+      <div className="ripple-stage">
+        <div className="ripple-watch-column">
+          <nav className="ripple-orbit-nav" aria-label="Couches du cadran">
+            {ORBIT.map(item => {
+              const Icon = item.icon;
+              const selected = activeLayer === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="ripple-orbit-button"
+                  aria-label={item.label}
+                  aria-current={selected ? 'page' : undefined}
+                  title={item.label}
+                  onClick={() => {
+                    if (selected) return;
+                    sfx.playNodeClick();
+                    window.location.hash = item.hash;
+                  }}
+                  style={{ '--orbit-accent': item.color } as React.CSSProperties}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="sr-only">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+          <div className="ripple-watch-wrap">
         <div
-          className="inline-flex items-center gap-1 rounded-full border p-1"
-          style={{ background: 'var(--ripple-surface, #fff)', borderColor: 'var(--ripple-line, rgba(0,0,0,0.1))' }}
-          role="group"
-          aria-label="Face du cercle"
-        >
-          {([
-            { id: 'front' as const, label: 'Face A · Graphique' },
-            { id: 'back' as const, label: 'Face B · Photos & Compte' }
-          ]).map((item) => {
-            const on = (isBack ? 'back' : 'front') === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => flipTo(item.id)}
-                aria-pressed={on}
-                className="pressable h-8 px-3.5 rounded-full text-[12px] font-bold transition-colors"
-                style={on ? { background: INK, color: 'var(--ripple-surface, #fff)' } : { color: MUTED }}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-1.5" role="toolbar" aria-label="Contrôles du cercle">
-        <button
-          type="button"
-          onClick={() => setRelationsVisible((visible) => !visible)}
-          aria-pressed={relationsVisible}
-          aria-label={relationsVisible ? "Masquer les relations" : "Afficher les relations"}
-          title={relationsVisible ? "Masquer les connexions" : "Afficher les connexions"}
-          className="pressable w-8 h-8 rounded-full border flex items-center justify-center"
-          style={{ background: relationsVisible ? "var(--ripple-soft, #eef2ff)" : "var(--ripple-surface, #fff)", borderColor: "var(--ripple-line, rgba(0,0,0,0.1))", color: INK }}
-        >
-          <Network className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => handleZoom(-ZOOM_STEP)}
-          disabled={zoom <= ZOOM_MIN}
-          aria-label="Dézoomer"
-          className="pressable w-8 h-8 rounded-full border flex items-center justify-center disabled:opacity-40"
-          style={{ background: 'var(--ripple-surface, #fff)', borderColor: 'var(--ripple-line, rgba(0,0,0,0.1))', color: INK }}
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <span className="text-[12px] font-bold tabular w-12 text-center" style={{ color: INK }}>
-          {Math.round(zoom * 100)}%
-        </span>
-        <button
-          type="button"
-          onClick={() => handleZoom(ZOOM_STEP)}
-          disabled={zoom >= ZOOM_MAX}
-          aria-label="Zoomer"
-          className="pressable w-8 h-8 rounded-full border flex items-center justify-center disabled:opacity-40"
-          style={{ background: 'var(--ripple-surface, #fff)', borderColor: 'var(--ripple-line, rgba(0,0,0,0.1))', color: INK }}
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        {(zoom !== 1.0 || pan.x !== 0 || pan.y !== 0) && (
-          <button
-            type="button"
-            onClick={resetView}
-            className="pressable h-8 px-3 rounded-full border text-[12px] font-bold flex items-center gap-1"
-            style={{ background: 'var(--ripple-surface, #fff)', borderColor: 'var(--ripple-line, rgba(0,0,0,0.1))', color: '#0066cc' }}
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            100%
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            setAudioMuted((m) => !m);
-          }}
-          aria-label={audioMuted ? 'Activer les effets sonores' : 'Couper les effets sonores'}
-          className="pressable w-8 h-8 rounded-full border flex items-center justify-center"
-          style={{ background: 'var(--ripple-surface, #fff)', borderColor: 'var(--ripple-line, rgba(0,0,0,0.1))', color: audioMuted ? MUTED : INK }}
-        >
-          {audioMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-        </button>
-        </div>
-      </div>
-
-      {/* ===== Zones 2 & 3 · Le Cercle Confort & Panneau ===== */}
-      <div className="mt-6 grid gap-8 xl:grid-cols-[minmax(0,1fr)_390px] xl:items-start">
-        <div
-          className={`relative w-full max-w-[940px] mx-auto aspect-square outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/50 rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.08)] ${flipAnim === 'out' ? 'ripple-flip-out' : flipAnim === 'in' ? 'ripple-flip-in' : ''}`}
+          className={`relative w-full mx-auto aspect-square outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/50 rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.08)] ${flipAnim === 'out' ? 'ripple-flip-out' : flipAnim === 'in' ? 'ripple-flip-in' : ''}`}
           style={{ background: 'var(--ripple-surface, #ffffff)' }}
           tabIndex={0}
           role="application"
@@ -1388,13 +1256,15 @@ export const Ripple: React.FC<RippleProps> = ({
                 )}
               </g>
             )}
+          {!isBack && <ClockDial minutes={minutes} night={night} />}
           </svg>
 
-          {/* ---------- Cœur du cercle : portrait en grand, sans carte ---------- */}
+          {/* ---------- Vue photo, uniquement sur la face B ---------- */}
           {/* Overlay ancré au centre géométrique : l'avatar/disque vert est
               positionné EXACTEMENT au centre du cercle (top/left:50% + translate -50%),
               et le bloc nom/titre est placé sous lui. Ainsi le rond central
               n'est plus décalé vers le haut par la hauteur du texte. */}
+          {isBack && (
           <div className="absolute inset-0 pointer-events-none">
             <div
               key={JSON.stringify(focus)}
@@ -1452,17 +1322,6 @@ export const Ripple: React.FC<RippleProps> = ({
                       >
                         {account.rsvp === 'yes' ? `Présent · ${account.partySize}` : account.rsvp === 'no' ? 'Absent' : 'À confirmer'}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sfx.playNodeClick();
-                          window.location.hash = 'account';
-                        }}
-                        className="pressable px-2 py-0.5 rounded-full text-[9px] sm:text-[10.5px] font-bold"
-                        style={{ background: INK, color: 'var(--ripple-surface, #fff)' }}
-                      >
-                        Compte
-                      </button>
                     </div>
                   ) : (
                     <p className="mt-1 text-[9px] sm:text-[11px] font-medium px-1 line-clamp-2" style={{ color: MUTED }}>
@@ -1559,20 +1418,34 @@ export const Ripple: React.FC<RippleProps> = ({
               )}
             </div>
           </div>
+          )}
+        </div>
+          </div>
+        <div className="ripple-watch-controls" role="toolbar" aria-label="Commandes du cadran">
+          <button type="button" className="ripple-circle-control" aria-label={isBack ? 'Voir le cadran recto' : 'Voir les photos au verso'} title={isBack ? 'Cadran' : 'Photos'} onClick={() => flipTo(isBack ? 'front' : 'back')}>
+            {isBack ? <Layers className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
+          </button>
+          <button type="button" className="ripple-circle-control" aria-pressed={relationsVisible} aria-label={relationsVisible ? 'Masquer les relations' : 'Afficher les relations'} title="Connexions" onClick={() => setRelationsVisible(v => !v)}>
+            <Network className="w-4 h-4" />
+          </button>
+          <span className="ripple-controls-divider" aria-hidden="true" />
+          <button type="button" className="ripple-circle-control" aria-label="Dézoomer" disabled={zoom <= ZOOM_MIN} onClick={() => handleZoom(-ZOOM_STEP)}><ZoomOut className="w-4 h-4" /></button>
+          <span className="text-[11px] font-bold tabular-nums w-11 text-center" style={{ color: INK }}>{Math.round(zoom * 100)}%</span>
+          <button type="button" className="ripple-circle-control" aria-label="Zoomer" disabled={zoom >= ZOOM_MAX} onClick={() => handleZoom(ZOOM_STEP)}><ZoomIn className="w-4 h-4" /></button>
+          <button type="button" className="ripple-circle-control" aria-label="Recentrer le cadran" onClick={resetView}><RotateCcw className="w-4 h-4" /></button>
+          <span className="ripple-controls-divider" aria-hidden="true" />
+          <button type="button" className="ripple-circle-control" onClick={() => setAudioMuted(m => !m)} aria-label={audioMuted ? 'Activer les effets sonores' : 'Couper les effets sonores'} title="Effets sonores">
+            {audioMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+        </div>
         </div>
 
-        {/* ===== Zone 3 · Panneau d'Information Haute Lisibilité ===== */}
-        <aside className="w-full max-w-[520px] mx-auto xl:mx-0 space-y-6">
-          {track && (
-            <AudioPreview key={track.id} track={track} onLevel={onAudioLevel} />
-          )}
-          <details className="ripple-regie-details group rounded-[16px] border p-3" style={{ borderColor: 'var(--ripple-line, rgba(0,0,0,0.1))', background: 'var(--ripple-surface, #fff)' }}>
-            <summary className="cursor-pointer select-none px-2 py-2 text-[13px] font-bold" style={{ color: INK }}>
-              Régie & conséquences <span className="font-normal" style={{ color: MUTED }}>· démonstration · ouvrir</span>
-            </summary>
-            <div className="mt-3"><ActionPanel engine={engine} /></div>
-          </details>
-
+        {/* ===== Colonne à lecture immédiate ===== */}
+        <aside className="ripple-inspector" aria-label="Comprendre et agir">
+          <CausalBrief
+            incident={moment?.cause ? moment : DAY_MOMENTS.find(m => m.cause) ?? DAY_MOMENTS[0]}
+            onSelect={() => choose({ kind: 'moment', id: DAY_MOMENTS.find(m => m.cause)?.id ?? DAY_MOMENTS[0].id })}
+          />
           <SelectionDetail
             focus={focus}
             account={account}
@@ -1587,40 +1460,55 @@ export const Ripple: React.FC<RippleProps> = ({
             onToggleTurn={() => {
               sfx.playNodeClick();
               if (!turning) setFocus({ kind: 'person', id: nearestPerson(angle) });
-              setTurning((p) => !p);
+              setTurning(p => !p);
             }}
             choose={choose}
             onScrub={onScrub}
             momentStates={engine.moments}
           />
+          {track && <AudioPreview key={track.id} track={track} onLevel={onAudioLevel} />}
 
-          <LayerList
-            activeLayer={activeLayer}
-            focus={focus}
-            account={account}
-            journey={publicJourney}
-            tracks={tracks}
-            memories={memories}
-            nowTrackId={nowTrack?.id ?? null}
-            minutes={minutes}
-            choose={choose}
-          />
-        </aside>
+          <details className="ripple-inspector-fold">
+            <summary>Temps & signaux <span>Conducteur 15:00 → 05:00</span></summary>
+            <div className="p-3 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-[18px] tabular-nums">{fmt(minutes)}</span>
+                <button type="button" onClick={() => manual ? onResume() : onToggle()} className="ripple-action-small">
+                  {live ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                  {manual ? 'Reprendre' : paused ? 'Play' : 'Pause'}
+                </button>
+              </div>
+              <input aria-label="Temps de régie simulé, de 21:00 à 21:56" type="range" min={ORCH_START} max={ORCH_END} step={1} value={scrubValue} onChange={e => onScrub(Number(e.target.value))} className="ios-slider w-full" />
+              <p className="text-[12px] opacity-75">Aiguille rouge : programme du jour J, dans le sens horaire. Deux aiguilles centrales : horloge classique 12 h.</p>
+              {nowTrack && <p className="text-[12px]">♪ {nowTrack.title} · {SETS[nowTrack.set].label}</p>}
+              {nextSignal?.signal && <p className="text-[12px]">Signal suivant : {nextSignal.signal.label} · {fmt(nextSignal.start)}</p>}
+              {scene && <p className="text-[12px] opacity-75">{scene.headline} · marge +{slack} min · stabilité {stability} %</p>}
+            </div>
+          </details>
+          <details className="ripple-inspector-fold">
+            <summary>Actions & décisions <span>Scénario d'orchestration</span></summary>
+            <div className="p-2"><ActionPanel engine={engine} /></div>
+          </details>
+          <details className="ripple-inspector-fold">
+            <summary>Explorer les éléments <span>Liste de la couche active</span></summary>
+            <div className="p-2">
+              <LayerList
+                activeLayer={activeLayer}
+                focus={focus}
+                account={account}
+                journey={publicJourney}
+                tracks={tracks}
+                memories={memories}
+                nowTrackId={nowTrack?.id ?? null}
+                minutes={minutes}
+                choose={choose}
+              />
+            </div>
+          </details>
+                </aside>
       </div>
 
-      <div className="mt-10 flex flex-col items-center gap-3">
-        <span
-          className="ripple-demo-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide"
-          title="Contenu fictif — démonstration locale sans serveur"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden="true" />
-          DÉMONSTRATION · Données fictives · Mariage Alexandre &amp; Sophie (Chantilly)
-        </span>
-        <p className="text-center text-[13px] font-medium" style={{ color: MUTED }}>
-          {NET_GUESTS.length + TEAM_GROUP.guests.length} profils complets sur les 94 convives du dîner.
-          Aucune donnée réelle · orchestration simulée côté navigateur.
-        </p>
-      </div>
+      <p className="ripple-demo-footnote">Démonstration fictive · {NET_GUESTS.length + TEAM_GROUP.guests.length} profils enregistrés localement · aucune synchronisation réelle</p>
     </main>
   );
 };
@@ -1803,19 +1691,7 @@ const SelectionDetail: React.FC<DetailProps> = ({
                 </li>
               ))}
             </ul>
-            {moment.cause && (
-              <div className="rounded-[16px] p-3.5 bg-[#FF9F0A]/[0.1] border border-[#FF9F0A]/40 space-y-1.5 mt-2">
-                <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#9A5B00]">
-                  <AlertTriangle className="w-4 h-4" /> Analyse Causalité & Plan B
-                </p>
-                <p className="text-[13.5px] font-semibold" style={{ color: INK }}>{moment.cause}</p>
-                {moment.planB && (
-                  <p className="text-[13px] font-medium" style={{ color: INK }}>
-                    <span className="font-bold">Plan B appliqué :</span> {moment.planB}
-                  </p>
-                )}
-              </div>
-            )}
+
           </>
         )}
 
