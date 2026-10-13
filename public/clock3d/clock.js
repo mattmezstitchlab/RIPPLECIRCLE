@@ -308,7 +308,9 @@ function initScene(){
 
   frontGroup = new THREE.Group();
   backGroup = new THREE.Group();
-  backGroup.rotation.x = Math.PI;
+  // Keep backGroup children at identity; we animate clockRoot.rotation.x for flip,
+  // and for the back we add an extra y-rotation so engraved text reads naturally.
+  backGroup.position.z = -0.10;
   clockRoot.add(frontGroup);
   clockRoot.add(backGroup);
 
@@ -541,13 +543,23 @@ function buildNodes(){
   // clear any existing
   ringMeshes.forEach(r => { r.nodes.forEach(n => r.group.remove(n.mesh)); r.nodes = []; });
   nodeMeshById.clear();
+  hoverable.clear();
 
   const sphereGeo = new THREE.SphereGeometry(0.16, 24, 20);
   const stemGeo = new THREE.CylinderGeometry(0.02,0.02,0.22,8);
   stemGeo.translate(0,0.11,0);
-  const coreSphereGeo = new THREE.SphereGeometry(0.72, 48, 32);
 
   data.nodes.forEach(nd => {
+    if (nd.id === 'CORE-001'){
+      // nucleus already built at origin; make its gold sphere selectable.
+      if (nucleusGroup){
+        const coreSphere = nucleusGroup.children[0]; // golden sphere
+        coreSphere.userData.nodeId = 'CORE-001';
+        hoverable.add(coreSphere);
+        nodeMeshById.set(nd.id, { mesh:nucleusGroup, sphere:coreSphere, data:nd, isCore:true });
+      }
+      return;
+    }
     const rdef = RING_DEFS.find(r => r.id === nd.ringId);
     if (!rdef) return;
     const ringEntry = ringMeshes[rdef.index];
@@ -555,21 +567,14 @@ function buildNodes(){
     const stem = new THREE.Mesh(stemGeo, nodeStemMat);
     stem.castShadow = true;
     grp.add(stem);
-    let mat, geo;
-    if (nd.id === 'CORE-001'){
-      geo = coreSphereGeo; mat = matGold;
-    } else {
-      geo = sphereGeo; mat = nodeMats[stateIndex[nd.state] ?? 0];
-    }
-    const s = new THREE.Mesh(geo, mat);
+    const mat = nodeMats[stateIndex[nd.state] ?? 0];
+    const s = new THREE.Mesh(sphereGeo, mat);
     s.castShadow = true; s.receiveShadow = true;
     s.position.z = 0.28;
     s.userData.nodeId = nd.id;
     grp.add(s);
-    // rotate so stem aligns with radial direction: we'll set group rotation per node
     grp.userData.nodeData = nd;
     grp.position.set(Math.cos(nd.angle)*rdef.radius, Math.sin(nd.angle)*rdef.radius, rdef.depth*0.5);
-    // radial rotation: stem points outward along radial
     grp.rotation.z = nd.angle - Math.PI/2;
     ringEntry.group.add(grp);
     hoverable.add(s);
@@ -581,8 +586,7 @@ function buildNodes(){
 function updateNodeStates(){
   data.nodes.forEach(nd => {
     const entry = nodeMeshById.get(nd.id);
-    if (!entry) return;
-    if (nd.id === 'CORE-001') return; // gold core
+    if (!entry || entry.isCore) return; // gold core stays gold
     const idx = stateIndex[nd.state] ?? 0;
     entry.sphere.material = nodeMats[idx];
   });
@@ -1178,10 +1182,9 @@ function tick(){
       data.nodes.forEach(n => {
         const d = propagation.dist[n.id];
         const entry = nodeMeshById.get(n.id);
-        if (!entry || n.id==='CORE-001') return;
+        if (!entry) return;
         if (d <= waveR){
-          // pulse scale briefly
-          const k = 1 + Math.max(0, 0.25 - (waveR-d)*0.02);
+          const k = entry.isCore ? 1 + 0.08*Math.sin(performance.now()*0.01) : 1 + Math.max(0, 0.35 - (waveR-d)*0.02);
           entry.sphere.scale.setScalar(k);
         } else {
           entry.sphere.scale.setScalar(1);
@@ -1195,11 +1198,11 @@ function tick(){
       propagation = null;
     }
   } else {
-    // hover highlight
+    // hover/selection highlight
     data.nodes.forEach(n => {
       const e = nodeMeshById.get(n.id); if (!e) return;
-      const k = (hoverId===n.id || selectedNodeId===n.id) ? 1.35 : 1;
-      e.sphere.scale.lerp(new THREE.Vector3(k,k,k), 0.2);
+      const target = (hoverId===n.id || selectedNodeId===n.id) ? (e.isCore ? 1.15 : 1.4) : 1;
+      e.sphere.scale.lerp(new THREE.Vector3(target,target,target), 0.2);
     });
   }
 
@@ -1224,24 +1227,446 @@ function tick(){
   animFrame = requestAnimationFrame(tick);
 }
 
+// ---------- search ----------
+const searchInput = $('#search-input');
+const searchResults = $('#search-results');
+if (searchInput){
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    if (!q){ searchResults.hidden = true; searchResults.innerHTML=''; return; }
+    const matches = data.nodes.filter(n => (n.name+' '+n.id+' '+(n.kind||'')).toLowerCase().includes(q)).slice(0,10);
+    if (!matches.length){ searchResults.hidden = false; searchResults.innerHTML='<button disabled>Aucun résultat</button>'; return; }
+    searchResults.innerHTML = '';
+    matches.forEach(n => {
+      const b = document.createElement('button');
+      b.innerHTML = `${n.name}<small>${n.id} · ${(n.kind||'').toUpperCase()} · ${n.ringId.toUpperCase()}</small>`;
+      b.addEventListener('click', () => { selectNode(n.id); searchResults.hidden=true; searchInput.value=''; });
+      searchResults.appendChild(b);
+    });
+    searchResults.hidden = false;
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-wrap')){ searchResults.hidden = true; }
+  });
+}
+
+// ---------- modal ----------
+const modal = $('#modal');
+const modalTitle = $('#modal-title');
+const modalBody = $('#modal-body');
+const modalPrimary = $('#modal-primary');
+const modalSecondary = $('#modal-secondary');
+const modalFootnote = $('#modal-footnote');
+const modalClose = $('#modal-close');
+const modalTabs = $$('.modal .tabs button');
+let currentTab = 'data';
+
+function openModal(tab='data'){
+  currentTab = tab;
+  modalTabs.forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+  renderTab(tab);
+  modal.hidden = false;
+  setTimeout(()=>modalPrimary.focus(),50);
+}
+function closeModal(){ modal.hidden = true; }
+modalClose?.addEventListener('click', closeModal);
+modal?.addEventListener('click', (e)=>{ if (e.target === modal) closeModal(); });
+modalTabs.forEach(t => t.addEventListener('click', ()=>{ currentTab=t.dataset.tab; modalTabs.forEach(x=>x.classList.toggle('active',x===t)); renderTab(t.dataset.tab); }));
+document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && !modal.hidden) closeModal(); });
+$('#btn-data')?.addEventListener('click', ()=>openModal('data'));
+$('#btn-github')?.addEventListener('click', ()=>openModal('project'));
+
+function renderTab(tab){
+  modalSecondary.hidden = true; modalSecondary.textContent = '';
+  if (tab === 'data'){
+    modalTitle.textContent = 'Données du projet';
+    modalBody.innerHTML = `
+      <p>Exporter ou importer un projet RIPPLECIRCLE au format JSON. Les données sont validées contre le schéma minimal avant application.</p>
+      <div class="row">
+        <button class="btn" id="exp-json">⬇ Exporter JSON</button>
+        <button class="btn" id="exp-csv">⬇ Exporter CSV (nœuds)</button>
+        <button class="btn" id="copy-url">⧉ Copier URL (données encodées)</button>
+        <label class="btn">⬆ Importer JSON<input id="imp-json" type="file" accept="application/json,.json" hidden></label>
+        <label class="btn">⬆ Importer CSV<input id="imp-csv" type="file" accept="text/csv,.csv" hidden></label>
+        <button class="btn" id="reset-data" style="color:#a33c3c">↺ Réinitialiser</button>
+      </div>
+      <textarea id="json-view" spellcheck="false"></textarea>
+      <div class="error-line" id="json-err"></div>`;
+    const ta = modalBody.querySelector('#json-view');
+    ta.value = JSON.stringify(data, null, 2);
+    modalBody.querySelector('#exp-json').onclick = () => downloadText(`ripplecircle-${slug(data.name)}.json`, JSON.stringify(data,null,2), 'application/json');
+    modalBody.querySelector('#exp-csv').onclick = () => downloadText(`ripplecircle-${slug(data.name)}-nodes.csv`, nodesToCSV(data.nodes), 'text/csv');
+    modalBody.querySelector('#copy-url').onclick = async () => {
+      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+      const url = `${location.origin}${location.pathname}#d=${encoded}`;
+      try { await navigator.clipboard.writeText(url); toast('URL copiée dans le presse-papier.'); }
+      catch(e){ toast('Copie impossible · URL affichée dans la console.'); console.log(url); }
+    };
+    modalBody.querySelector('#imp-json').onchange = async (e) => {
+      const f = e.target.files?.[0]; if (!f) return;
+      const text = await f.text();
+      try {
+        const obj = JSON.parse(text);
+        applyDataset(obj);
+      } catch(err){ modalBody.querySelector('#json-err').textContent = 'JSON invalide : '+err.message; }
+    };
+    modalBody.querySelector('#imp-csv').onchange = async (e) => {
+      const f = e.target.files?.[0]; if (!f) return;
+      const text = await f.text();
+      try { importNodesCSV(text); }
+      catch(err){ modalBody.querySelector('#json-err').textContent = 'CSV invalide : '+err.message; }
+    };
+    modalBody.querySelector('#reset-data').onclick = () => {
+      if (confirm('Réinitialiser toutes les données aux valeurs par défaut\u00a0?')){
+        data = structuredClone(DEFAULT_DATA);
+        rebuildAll();
+        saveLocal();
+        closeModal();
+        toast('Données réinitialisées.');
+      }
+    };
+    ta.addEventListener('input', () => {
+      try {
+        const obj = JSON.parse(ta.value);
+        if (validateData(obj)){ modalBody.querySelector('#json-err').textContent=''; }
+        else modalBody.querySelector('#json-err').textContent='JSON valide mais données non conformes au schéma.';
+      } catch(e){ modalBody.querySelector('#json-err').textContent='JSON invalide : '+e.message; }
+    });
+    modalPrimary.textContent = 'Appliquer & fermer';
+    modalPrimary.onclick = () => {
+      try { const obj = JSON.parse(ta.value); if (validateData(obj)){ applyDataset(obj); closeModal(); } }
+      catch(e){ toast('Corrigez le JSON avant d’appliquer.'); }
+    };
+  } else if (tab === 'project'){
+    modalTitle.textContent = 'Projet GitHub';
+    modalBody.innerHTML = `
+      <p>RIPPLECIRCLE est un outil open-source de cartographie des conséquences.</p>
+      <p><b>Dépôt :</b> <a href="https://github.com/mattmezstitchlab/RIPPLECIRCLE" target="_blank" rel="noreferrer">mattmezstitchlab/RIPPLECIRCLE</a></p>
+      <p><b>Version :</b> v0.1 · standalone three@0.160 · construit localement en vanilla pour fiabilité.</p>
+      <p>La page 3D est autonome (<code>public/clock3d/</code>) et cohabite avec la landing 2D React existante sans l’écraser.</p>
+      <div class="row">
+        <a class="btn" href="https://github.com/mattmezstitchlab/RIPPLECIRCLE" target="_blank" rel="noreferrer"><svg class="icon"><use href="#i-git"/></svg>Ouvrir le dépôt</a>
+        <button class="btn" id="zip-export">⬇ Exporter ZIP projet (site)</button>
+      </div>
+      <p style="font-size:10px;color:var(--muted)">Note : l’export ZIP n’est pas disponible sans inclusion de bibliothèque de compression dans cette édition standalone. Le JSON exporté est la source de vérité.</p>`;
+    modalPrimary.textContent = 'Fermer'; modalPrimary.onclick = closeModal;
+  } else if (tab === 'schema'){
+    modalTitle.textContent = 'Schéma des données';
+    modalBody.innerHTML = `<p>Un projet est un objet JSON :</p>
+<pre style="background:#fff;border:1px solid var(--line);padding:12px;font-size:10px;overflow:auto">{
+  "version": "1.0",
+  "name": "Nom du projet",
+  "nodes": [
+    { "id": "CORE-001", "name": "…", "ringId": "orchestrate|cal|time|people|relations|moments|memory",
+      "state": "OBSERVED|PREDICTED|PROPOSED|CONFIRMED",
+      "angle": -3.1415..3.1415,  // radians, 0 = droite, -π/2 = haut (midi)
+      "description": "…",
+      "date": "YYYY-MM-DD",
+      "kind": "personne|jalon|rituel|…" }
+  ],
+  "links": [ { "from": "ID", "to": "ID", "weight": 0..1, "kind": "alliance|conseil|…" } ]
+}</pre>
+<p>Tout <code>id</code> référencé dans un lien doit exister dans les nœuds. Les identifiants sont stables.</p>`;
+    modalPrimary.textContent = 'Fermer'; modalPrimary.onclick = closeModal;
+  } else if (tab === 'shortcuts'){
+    modalTitle.textContent = 'Raccourcis clavier & geste';
+    modalBody.innerHTML = `
+<ul style="padding-left:20px;margin:0;font-size:11px;line-height:2">
+<li><kbd>Espace</kbd> — Lecture / Pause des couronnes</li>
+<li><kbd>R</kbd> — Recentrer la caméra et refermer l’écartement</li>
+<li><kbd>F</kbd> — Retourner le bijou (face ↔ dos)</li>
+<li><kbd>D</kbd> — Ouvrir les données du projet</li>
+<li><kbd>+</kbd> / <kbd>-</kbd> — Zoomer / dézoomer</li>
+<li><kbd>1</kbd> Vue 3/4 · <kbd>2</kbd> Face · <kbd>3</kbd> Profil · <kbd>4</kbd> Dessus · <kbd>5</kbd> Éclaté</li>
+<li><kbd>Ctrl/Cmd + molette</kbd> — Zoomer (la molette seule fait défiler la page)</li>
+<li>Double-clic dans la scène — retourner le bijou</li>
+<li>Glisser — orbiter · clic sur bille — sélectionner</li>
+</ul>`;
+    modalPrimary.textContent = 'Fermer'; modalPrimary.onclick = closeModal;
+  }
+  modalFootnote.textContent = `${data.name} · ${data.nodes.length} nœuds · ${data.links.length} liens`;
+}
+
+function slug(s){ return (s||'projet').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40) || 'projet'; }
+function downloadText(filename, text, mime='text/plain'){
+  const blob = new Blob([text], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 300);
+}
+function nodesToCSV(nodes){
+  const cols = ['id','name','ringId','state','angle','date','kind','description'];
+  const esc = v => '"'+String(v??'').replace(/"/g,'""')+'"';
+  return [cols.join(','), ...nodes.map(n => cols.map(c => esc(n[c])).join(','))].join('\n');
+}
+function applyDataset(obj){
+  if (!validateData(obj)){ toast('Données invalides (schéma non respecté).'); return false; }
+  data = obj;
+  saveLocal();
+  closeModal();
+  toast('Données importées · '+obj.nodes.length+' nœuds — rechargement…');
+  setTimeout(()=>location.reload(), 400);
+  return true;
+}
+function importNodesCSV(text){
+  const lines = text.split(/\r?\n/).filter(l=>l.trim());
+  if (lines.length < 2) throw new Error('CSV vide.');
+  const headers = lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+  const newNodes = [];
+  for (let i=1;i<lines.length;i++){
+    const cells = splitCSVLine(lines[i]);
+    const obj = {};
+    headers.forEach((h,k)=> obj[h] = cells[k]);
+    if (!obj.id || !obj.name || !obj.ringId) throw new Error(`Ligne ${i+1} : id/name/ringId requis.`);
+    obj.angle = parseFloat(obj.angle)||0;
+    obj.state = obj.state || 'OBSERVED';
+    newNodes.push(obj);
+  }
+  // Ensure a core exists at orchestrate if not in CSV
+  if (!newNodes.find(n=>n.id==='CORE-001')){
+    newNodes.unshift({id:'CORE-001', name:'Noyau identitaire', ringId:'orchestrate', state:'OBSERVED', angle:0, description:'Ancre du système.', kind:'noyau', date:new Date().toISOString().slice(0,10)});
+  }
+  const existingLinks = data.links.filter(l => newNodes.find(n=>n.id===l.from) && newNodes.find(n=>n.id===l.to));
+  data = { version:'1.0', name: data.name || 'Import CSV', nodes:newNodes, links:existingLinks, createdAt:data.createdAt||new Date().toISOString() };
+  saveLocal();
+  closeModal();
+  toast('CSV importé · '+newNodes.length+' nœuds — rechargement…');
+  setTimeout(()=>location.reload(), 400);
+}
+function splitCSVLine(line){
+  const out=[]; let cur=''; let inQ=false;
+  for (let i=0;i<line.length;i++){
+    const c = line[i];
+    if (c === '"'){ if (inQ && line[i+1]==='"'){cur+='"';i++;} else inQ=!inQ; }
+    else if (c===',' && !inQ){ out.push(cur); cur=''; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out.map(s=>s.replace(/^"|"$/g,''));
+}
+function rebuildAll(){
+  // remove all ring groups
+  ringMeshes.forEach(r => { frontGroup.remove(r.group); });
+  ringMeshes = [];
+  if (webMat) webMat.dispose();
+  if (frontGroup.getObjectByName('web')) frontGroup.remove(frontGroup.getObjectByName('web'));
+  if (nucleusGroup) frontGroup.remove(nucleusGroup);
+  if (handsGroup) frontGroup.remove(handsGroup);
+  if (spokesGroup) frontGroup.remove(spokesGroup);
+  if (outerTicks) frontGroup.remove(outerTicks);
+  // remove old month labels/crosshairs (CSS2DObjects whose element has no dataset mark; easiest: rebuild by re-calling buildFront partially)
+  // Simpler: rebuild rings+nodes+web+nucleus+hands — months/crosshairs were added once and stay.
+  // Remove existing CSS2D labels from months/crosshairs by marking not present (we leave them).
+  // Re-run the ring/node build portion. To avoid month duplication, only run ring build:
+  buildRingsOnly();
+  buildNodes();
+  buildWeb();
+  buildNucleus();
+  buildHands();
+  ringVisibility = RING_DEFS.map(()=>true);
+  buildRingControls();
+  selectNode(data.nodes.find(n=>n.id==='CORE-001') ? 'CORE-001' : data.nodes[0].id);
+  datasetName.textContent = data.name || 'Projet';
+  sourceLabel.textContent = 'Données locales';
+}
+// Rebuild only rings section (duplicated from buildFront, minus months/labels/screws which are one-off).
+// We take the pragmatic approach: reload the page for a clean full rebuild after data import.
+function rebuildAllHard(){
+  // Easiest reliable path: save data then reload (full page re-init cleans three.js scene).
+  saveLocal();
+  location.reload();
+}
+
+function buildRingsOnly(){
+  // We keep the existing outerTicks/spokes/backing/months and just rebuild rings.
+  // Remove existing ring groups:
+  ringMeshes.forEach(r => frontGroup.remove(r.group));
+  ringMeshes = [];
+  const ringMaterials = [matLight, matTitanium, matSilver, matLight, matTitanium, matSilver, matLight];
+  const _m = new THREE.Matrix4();
+  const _q = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI/2,0,0));
+  RING_DEFS.forEach((def, i) => {
+    const g = new THREE.Group();
+    g.userData.ringDef = def;
+    const innerR = def.radius - def.width/2;
+    const outerR = def.radius + def.width/2;
+    const bodyGeo = makeAnnulus(innerR, outerR, def.depth);
+    const body = new THREE.Mesh(bodyGeo, ringMaterials[i]);
+    body.castShadow = true; body.receiveShadow = true;
+    g.add(body);
+    const inlayW = def.width*0.42;
+    const inlayGeo = makeAnnulus(def.radius-inlayW/2, def.radius+inlayW/2, def.depth*0.5);
+    const inlay = new THREE.Mesh(inlayGeo, matSilver);
+    inlay.position.z = def.depth*0.5+0.002;
+    g.add(inlay);
+    const innerRail = new THREE.Mesh(new THREE.TorusGeometry(innerR,0.012,6,80), matInk);
+    innerRail.rotation.x = Math.PI/2; g.add(innerRail);
+    const outerRail = new THREE.Mesh(new THREE.TorusGeometry(outerR,0.012,6,80), matInk);
+    outerRail.rotation.x = Math.PI/2; g.add(outerRail);
+    const tickCount = [60,60,12,12,8,8,6][i];
+    const tickLen = [0.10,0.09,0.09,0.08,0.07,0.06,0.06][i];
+    const rTickGeo = new THREE.BoxGeometry(0.014, tickLen, def.depth*0.5);
+    const rTickMesh = new THREE.InstancedMesh(rTickGeo, tickMat, tickCount);
+    rTickMesh.castShadow = true;
+    for (let t=0;t<tickCount;t++){
+      const a = (t/tickCount)*Math.PI*2;
+      _m.compose(new THREE.Vector3(Math.cos(a)*def.radius, Math.sin(a)*def.radius, def.depth*0.25+0.02),
+                 new THREE.Quaternion().setFromEuler(new THREE.Euler(0,0,a+Math.PI/2)), new THREE.Vector3(1,1,1));
+      rTickMesh.setMatrixAt(t,_m);
+    }
+    rTickMesh.instanceMatrix.needsUpdate = true;
+    g.add(rTickMesh);
+    if (def.id === 'cal'){
+      for (let n=1;n<=12;n++){
+        const a=(n/12)*Math.PI*2-Math.PI/2;
+        const L=makeTextLabel(String(n),{fontSize:11,color:'#252822'});
+        L.position.set(Math.cos(a)*(def.radius+0.22), Math.sin(a)*(def.radius+0.22), 0.04);
+        g.add(L);
+      }
+    }
+    if (def.id === 'time'){
+      for (let n=0;n<12;n++){
+        const a=(n/12)*Math.PI*2-Math.PI/2;
+        const L=makeTextLabel(String(n*5).padStart(2,'0'),{fontSize:8,color:'#797b72',mono:true});
+        L.position.set(Math.cos(a)*(def.radius-0.18), Math.sin(a)*(def.radius-0.18), 0.04);
+        g.add(L);
+      }
+    }
+    if (def.id === 'cal' || def.id === 'people' || def.id === 'memory'){
+      const fs=6;
+      const fGeo=new THREE.CylinderGeometry(0.045,0.045,0.04,10);
+      const fMesh=new THREE.InstancedMesh(fGeo, matGold, fs);
+      fMesh.castShadow=true;
+      for (let k=0;k<fs;k++){
+        const a=(k/fs)*Math.PI*2+Math.PI/fs;
+        _m.compose(new THREE.Vector3(Math.cos(a)*(innerR+0.07),Math.sin(a)*(innerR+0.07),def.depth*0.5+0.025),_q,new THREE.Vector3(1,1,1));
+        fMesh.setMatrixAt(k,_m);
+      }
+      fMesh.instanceMatrix.needsUpdate=true; g.add(fMesh);
+    }
+    const ringLabel=makeTextLabel(def.label.toUpperCase(),{fontSize:7,color:'#999a90',mono:true,letterSpacing:'0.2em'});
+    ringLabel.position.set(0,-(def.radius+0.48),0.04); g.add(ringLabel);
+    frontGroup.add(g);
+    ringMeshes.push({group:g, def, body, nodes:[]});
+  });
+}
+
+// ---------- URL data on load ----------
+function loadFromURL(){
+  const m = location.hash.match(/d=([^&]+)/);
+  if (!m) return false;
+  try {
+    const json = decodeURIComponent(escape(atob(m[1])));
+    const obj = JSON.parse(json);
+    if (validateData(obj)){ data = obj; sourceLabel.textContent = 'Données URL'; datasetName.textContent = data.name||'Projet'; return true; }
+  } catch(e){ console.warn('URL data invalid', e); }
+  return false;
+}
+
+// ---------- WebGL context loss ----------
+function attachLossHandlers(){
+  renderer?.domElement.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    cancelAnimationFrame(animFrame);
+    loadingEl.hidden = false; loadingEl.style.opacity = 1;
+    loadingTitle.textContent = 'Contexte WebGL perdu';
+    loadingDetail.textContent = 'Le navigateur a interrompu le rendu. Cliquez pour réessayer.';
+    loadingEl.style.cursor = 'pointer';
+    const retry = () => { location.reload(); };
+    loadingEl.addEventListener('click', retry, {once:true});
+  }, false);
+}
+
+// ---------- keyboard shortcut D ----------
+window.addEventListener('keydown', (e) => {
+  if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+  if (e.key === 'd' || e.key === 'D'){ if (modal.hidden) openModal('data'); else closeModal(); }
+});
+
+// ---------- back crown drag (MODE/FOCUS) ----------
+(function wireBackCrowns(){
+  // After init, backGroup.userData.crowns are two groups. We make them draggable when on the back side.
+  setTimeout(() => {
+    if (!backGroup || !backGroup.userData?.crowns) return;
+    const crowns = backGroup.userData.crowns;
+    const state = { dragging:null, startX:0, startRot:0 };
+    crowns.forEach((c, i) => {
+      const mesh = c.children[0]; // cylinder body
+      mesh.userData.crownIndex = i;
+      const s = Math.min(80, window.devicePixelRatio*60+40);
+      const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.55,0.4,24), new THREE.MeshBasicMaterial({visible:false}));
+      hit.rotation.x = Math.PI/2;
+      c.add(hit);
+      const down = (e) => {
+        if (side !== 'back') return;
+        e.stopPropagation();
+        state.dragging = i; state.startX = e.clientX ?? e.touches?.[0]?.clientX ?? 0; state.startRot = c.rotation.z;
+        controls.enabled = false;
+        document.body.style.cursor = 'grabbing';
+      };
+      hit.addEventListener('pointerdown', down);
+      const move = (e) => {
+        if (state.dragging !== i) return;
+        const x = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+        const dx = x - state.startX;
+        c.rotation.z = state.startRot + dx*0.02;
+        if (i===0){ MODE_CROWN_VALUE = (c.rotation.z % (Math.PI*2)) / (Math.PI*2); }
+        else { FOCUS_CROWN_VALUE = (c.rotation.z % (Math.PI*2)) / (Math.PI*2); }
+        updateCrownDisplay();
+      };
+      const up = () => { if (state.dragging===i){ state.dragging=null; controls.enabled=true; document.body.style.cursor=''; } };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    });
+  }, 300);
+})();
+let MODE_CROWN_VALUE = 0;
+let FOCUS_CROWN_VALUE = 0;
+function updateCrownDisplay(){
+  // MODE crown cycles modes; FOCUS crown zoom/explode level.
+  const modeIdx = Math.floor(((MODE_CROWN_VALUE%1)+1)%1 * 3);
+  const modes = ['instrument','connection','consequence'];
+  const newMode = modes[modeIdx];
+  if (newMode !== activeMode){
+    activeMode = newMode;
+    modeButtons.forEach(b => b.classList.toggle('active', b.dataset.mode===newMode));
+    modeCaption.textContent = ({instrument:'MÉCANIQUE ORCHESTRÉE',connection:'RÉSEAU DES DÉPENDANCES',consequence:'PROPAGATION DES ONDES'})[newMode];
+  }
+  // FOCUS drives explode
+  const ex = Math.max(0, Math.min(1, FOCUS_CROWN_VALUE));
+  ringTargetZ = RING_DEFS.map((d,i)=> ex*(0.3+i*0.5));
+  explodeInput.value = Math.round(ex*100);
+  explodeValue.textContent = Math.round(ex*100)+' %';
+}
+
+// ---------- touch: increase hit targets ----------
+(function touchSupport(){
+  // Increase pointer movement threshold for touch devices to differentiate drag from tap.
+  if (matchMedia('(pointer:coarse)').matches){
+    dragThreshold = 14;
+  }
+})();
+
 // ---------- boot ----------
 function boot(){
   loadingDetail.textContent = 'Scène · caméra · éclairage studio';
   initScene();
-  loadingDetail.textContent = 'Géométrie des 7 couronnes';
-  // scene builds synchronously in initScene -> buildFront/buildBack
   loadingDetail.textContent = 'Insertion des billes et du réseau';
   selectNode('CORE-001');
   applyTimeline();
+  attachLossHandlers();
   onResize();
-  // remove loading overlay
+  // Try URL data
+  if (loadFromURL()){ datasetName.textContent = data.name||'Projet'; selectNode('CORE-001'); }
   setTimeout(()=>{
     loadingEl.style.transition='opacity .5s';
     loadingEl.style.opacity=0;
     setTimeout(()=>loadingEl.hidden=true,500);
   }, 400);
   liveStatus.textContent = 'Instrument prêt.';
-  toast('Instrument prêt · glisser pour orbiter · double-clic pour retourner');
+  toast('Instrument prêt · glisser pour orbiter · F ou double-clic pour retourner');
   animFrame = requestAnimationFrame(tick);
 }
 
