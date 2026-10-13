@@ -105,3 +105,8 @@ Le site public utilise une seule face 2D et **trois modes principaux** : Explore
 L’inspecteur montre une fiche unique condensée : instant, titre, personnes avec portraits et, pour l’incident fictif, retard, rôles touchés et nombre d'options. Les explications, conséquences détaillées, régie et fiches historiques s’ouvrent sur demande. Le mode Et si ? donne toujours accès au curseur de retard, à la chaîne de causes et à trois plans; le mode Rejouer lance le simulateur de chronologie préparée. Les impacts cachés et consignes restent dans les outils avancés.
 
 Aucun calcul propriétaire du noyau privé n’a été déplacé vers le dépôt public. Aucun événement réel ni notification n’est produit.
+
+
+## V7 — Cadrage spatial et contrôles bas d’écran (prototype)
+
+Le dock fixe contient un bouton Entier/Demi/Quart, les zooms +/- et un panneau secondaire (volume, relations, recentrage). Le clic répété sur ce bouton fait tourner les vues ; un double-clic sur le cadran choisit le secteur à cadrer. Les trois vues n'envoient rien et n'altèrent pas les données. Voir `docs/V7-NOVELTY-UX-AUDIT.md` pour la recherche comparative et les limites.

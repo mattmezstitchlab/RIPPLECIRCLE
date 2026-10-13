@@ -25,6 +25,10 @@ describe('RIPPLECIRCLE — instrument centré', () => {
     expect(ripple).toContain('timeline-scrub-ring');
     expect(ripple).toContain('ripple-v6-modes');
     expect(ripple).toContain('ripple-v6-layers');
+    expect(ripple).toContain('ripple-v7-dock');
+    expect(ripple).toContain('ripple-v7-frame-btn');
+    expect(ripple).toContain('cycleFrame');
+    expect(ripple).toContain('onDoubleClick');
     expect(ripple).not.toContain('ripple-public-hero-actions');
     expect(ripple).toContain("layer === 'day' || layer === 'people'");
     const inspectorSource=readFileSync(resolve(__dirname, '../InstantInspector.tsx'), 'utf8');
