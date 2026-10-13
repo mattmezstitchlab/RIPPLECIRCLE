@@ -153,6 +153,10 @@ try {
       findings.push({size:size.id,kind:'night-option-still-visible'});
     const accountTabs=page.getByRole('navigation',{name:'Réglages du compte'}).getByRole('button');
     if (await accountTabs.count()!==4) findings.push({size:size.id,kind:'account-tabs-invalid'});
+    const tabRects = await page.locator('.account-settings-tab').evaluateAll(items =>
+      items.map(el => ({ left:el.getBoundingClientRect().left, right:el.getBoundingClientRect().right })));
+    if (tabRects.some(r => r.left < -1 || r.right > size.width + 1))
+      findings.push({size:size.id,kind:'account-tabs-clipped'});
     await page.getByLabel('Prénom').fill('Profil QA');
     await page.getByRole('button', { name:'RSVP', exact:true }).click();
     await page.getByRole('button', { name:'Je confirme bientôt' }).click();
@@ -183,6 +187,8 @@ try {
     if (await page.getByLabel('Prénom').inputValue()!=='Antoine')
       findings.push({size:size.id,kind:'account-reset-failed'});
     if (['desktop-1600','mobile-390'].includes(size.id)){
+      await page.waitForTimeout(2750); // capture the settled account, not a transient reset toast
+      await page.evaluate(() => scrollTo(0,0));
       await page.screenshot({path:OUTPUT+'/'+size.id+'-account.png',fullPage:true,animations:'disabled',timeout:15000});
     }
     if(size.id==='mobile-390'){
@@ -209,7 +215,7 @@ try {
   }
   await writeFile(OUTPUT + '/findings.json', JSON.stringify({ findings }, null, 2));
   console.log('VISUAL_FINDINGS ' + JSON.stringify(findings));
-  if (findings.some(x => ['console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration'].includes(x.kind))) {
+  if (findings.some(x => ['console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration'].includes(x.kind))) {
     process.exitCode = 1;
   }
 } finally {
