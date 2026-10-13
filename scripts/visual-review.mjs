@@ -144,6 +144,28 @@ try {
     }
     await toolsNav.getByRole('button', { name: 'Rejouer' }).click();
     if (await page.locator('.ripple-v4-frames').count()) findings.push({ size:size.id, kind:'v4-close-replay-failed' });
+    // V5 : pas de verso, portraits en regard de leur contenu dans l'inspecteur.
+    if (await page.getByRole('button',{name:'Voir les photos au verso'}).count() !== 0)
+      findings.push({size:size.id,kind:'v5-back-face-still-present'});
+    if (await page.locator('.ripple-effect-avatar').count() < 2)
+      findings.push({size:size.id,kind:'v5-impact-portraits-missing'});
+    if (await page.locator('.ripple-context-person').count() < 1)
+      findings.push({size:size.id,kind:'v5-context-portraits-missing'});
+    await page.locator('.ripple-context-person').first().click();
+    await page.locator('.ripple-selected-person [data-testid="person-portrait"]').waitFor();
+    const selectedName=await page.locator('.ripple-selected-person .ripple-context-title').textContent();
+    if (!selectedName || !selectedName.trim())
+      findings.push({size:size.id,kind:'v5-person-focus-missing'});
+    if (['desktop-1600','mobile-390'].includes(size.id)){
+      await page.screenshot({path:OUTPUT+'/'+size.id+'-people-single-face.png',
+        fullPage:true,animations:'disabled',timeout:15000});
+    }
+    await page.getByRole('button',{name:'Personnes et relations'}).click();
+    if (await page.locator('.ripple-selected-person [data-testid="person-portrait"]').count() !== 1)
+      findings.push({size:size.id,kind:'v5-people-layer-portrait-missing'});
+    await page.getByText('Explorer les éléments de cette couche').click();
+    if (await page.locator('.ripple-context-fold').last().locator('[data-testid="person-portrait"]').count() < 2)
+      findings.push({size:size.id,kind:'v5-directory-portraits-missing'});
     const nav = page.getByRole('button', { name: 'Musique' });
     await nav.click();
     if (!page.url().includes('#playlist')) findings.push({ size: size.id, kind: 'navigation-failed' });
@@ -215,7 +237,7 @@ try {
   }
   await writeFile(OUTPUT + '/findings.json', JSON.stringify({ findings }, null, 2));
   console.log('VISUAL_FINDINGS ' + JSON.stringify(findings));
-  if (findings.some(x => ['console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration'].includes(x.kind))) {
+  if (findings.some(x => ['console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
     process.exitCode = 1;
   }
 } finally {

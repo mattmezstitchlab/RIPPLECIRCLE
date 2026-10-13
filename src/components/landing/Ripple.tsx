@@ -39,7 +39,8 @@ import { DocSheet } from './DocSheet';
 import { ActionPanel } from './ActionPanel';
 import { AudioPreview } from './AudioPreview';
 import { ClockDial } from './ClockDial';
-import { InstantInspector } from './InstantInspector';
+import { InstantInspector, type InspectorPerson } from './InstantInspector';
+import { ProfilePortrait } from './ProfilePortrait';
 import { PublicIncidentDemo } from './PublicIncidentDemo';
 import { PublicAftermathDemo } from './PublicAftermathDemo';
 import { type PublicMode, type RepairId } from '../../utils/publicSimulation';
@@ -259,7 +260,6 @@ export const Ripple: React.FC<RippleProps> = ({
   const [publicPlan, setPublicPlan] = useState<RepairId | null>(null);
 
   // Per-instance unique id for SVG clipPaths (avoids collisions if multiple Ripple instances mount).
-  const instanceId = useRef(`r${Math.random().toString(36).slice(2, 8)}`);
 
   // Audio mute — persisted, defaults to muted when user prefers reduced motion.
   const [audioMuted, setAudioMuted] = usePersistentState<boolean>(
@@ -269,41 +269,6 @@ export const Ripple: React.FC<RippleProps> = ({
   useEffect(() => {
     sfx.enabled = !audioMuted;
   }, [audioMuted]);
-
-  // Recto / verso : Face A = graphique (points), Face B = photos & compte
-  const [side, setSide] = useState<'front' | 'back'>('front');
-  const [flipAnim, setFlipAnim] = useState<'idle' | 'out' | 'in'>('idle');
-  const flipTimers = useRef<number[]>([]);
-  const isBack = side === 'back';
-
-  const flipTo = (next: 'front' | 'back') => {
-    if (next === side || flipAnim !== 'idle') return;
-    sfx.playNodeClick();
-    if (next === 'back') {
-      setTurning(false);
-      setFocus({ kind: 'person', id: account.profileId });
-      setAngle(ANGLE[account.profileId] ?? 0);
-    }
-    if (reduceMotion) {
-      setSide(next);
-      return;
-    }
-    setFlipAnim('out');
-    const t1 = window.setTimeout(() => {
-      setSide(next);
-      setFlipAnim('in');
-      const t2 = window.setTimeout(() => setFlipAnim('idle'), 340);
-      flipTimers.current.push(t2);
-    }, 270);
-    flipTimers.current.push(t1);
-  };
-
-  useEffect(
-    () => () => {
-      flipTimers.current.forEach((id) => window.clearTimeout(id));
-    },
-    []
-  );
 
   // Zoom & Pan state
   const [relationsVisible, setRelationsVisible] = useState(true);
@@ -364,7 +329,6 @@ export const Ripple: React.FC<RippleProps> = ({
         ORDER.filter(id => dayRoleOf(personData[id]) === role).slice(0, role === 'invite' ? 2 : 1))
     : [];
 
-  const personPhoto = (id: string) => id === account.profileId && account.avatarUrl ? account.avatarUrl : guestPhoto(id);
   const publicJourney = account.journey.filter((milestone) => milestone.shared);
   const journeyStartDate = useMemo(() => {
     const birth = account.journey.find((milestone) => milestone.kind === 'naissance');
@@ -542,8 +506,6 @@ export const Ripple: React.FC<RippleProps> = ({
 
   const overview = activeLayer === 'overview';
   const show = (layer: Exclude<RippleLayer, 'overview'>) => {
-    // Dos du cercle : uniquement les photos des convives, tout le reste disparaît
-    if (isBack) return layer === 'people';
     return compact ? layer === activeLayer || ((overview || activeLayer === 'playlist') && (layer === 'people' || layer === 'playlist' || layer === 'day')) : true;
   };
   const emphasis = (_layer: Exclude<RippleLayer, 'overview'>) => 1;
@@ -636,9 +598,24 @@ export const Ripple: React.FC<RippleProps> = ({
     : media ? media.legend : journeySel ? journeySel.title : dayFocus !== null
       ? new Date(YEAR,0,dayFocus+1).toLocaleDateString('fr-FR',{ day:'numeric',month:'long' })
       : activeMoment.title;
-  const activePeople = [...new Set(activeMoment.roles
+  const inspectorPerson = (id: string): InspectorPerson => ({
+    id,
+    name: fullName(personData[id]),
+    role: personData[id].job,
+    photo: photoOf(account, id)
+  });
+  const selectedPerson = person ? inspectorPerson(person.id) : null;
+  const contextPeople = [...new Set(activeMoment.roles
     .map(role => ORDER.find(id => dayRoleOf(personData[id]) === role))
-    .filter((id): id is string => Boolean(id)))].map(id => personData[id].first);
+    .filter((id): id is string => Boolean(id)))]
+    .filter(id => id !== selectedPerson?.id)
+    .slice(0, 3)
+    .map(inspectorPerson);
+  const effectPeople: Partial<Record<string, InspectorPerson>> = {};
+  for (const impact of activeMoment.impacts ?? []) {
+    const id = ORDER.find(item => dayRoleOf(personData[item]) === impact.role);
+    if (id) effectPeople[impact.role] = inspectorPerson(id);
+  }
 
   return (
     <main className="max-w-[1680px] mx-auto px-4 sm:px-6 pt-3 pb-5">
@@ -699,11 +676,11 @@ export const Ripple: React.FC<RippleProps> = ({
           </nav>
           <div className="ripple-watch-wrap">
         <div
-          className={`relative w-full mx-auto aspect-square outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/50 rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.08)] ${flipAnim === 'out' ? 'ripple-flip-out' : flipAnim === 'in' ? 'ripple-flip-in' : ''}`}
+          className="relative w-full mx-auto aspect-square outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/50 rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.08)]"
           style={{ background: 'var(--ripple-surface, #ffffff)' }}
           tabIndex={0}
           role="application"
-          aria-label={`Cercle Ripple — ${isBack ? 'face B, photos et compte' : 'face A, graphique'} — couche active : ${activeLayer}. Flèches gauche et droite pour naviguer, F pour retourner.`}
+          aria-label={`Cercle Ripple 2D — couche active : ${activeLayer}. Flèches gauche et droite pour naviguer, plus et moins pour zoomer.`}
           onKeyDown={(e) => {
             if (e.key === 'ArrowRight') {
               e.preventDefault();
@@ -711,9 +688,7 @@ export const Ripple: React.FC<RippleProps> = ({
             } else if (e.key === 'ArrowLeft') {
               e.preventDefault();
               stepFocus(-1);
-            } else if (e.key === 'f' || e.key === 'F') {
-              e.preventDefault();
-              flipTo(isBack ? 'front' : 'back');
+
             } else if (e.key === '+' || e.key === '=') {
               e.preventDefault();
               handleZoom(0.2);
@@ -735,7 +710,7 @@ export const Ripple: React.FC<RippleProps> = ({
             onPointerDown={(e) => {
               const p = angleFromEvent(e);
               if (!p) return;
-              if (!isBack && p.d >= R.hours - 18 && p.d <= R.hours + 18) {
+              if (p.d >= R.hours - 18 && p.d <= R.hours + 18) {
                 e.preventDefault();
                 draggingTime.current = true;
                 (e.target as Element).setPointerCapture?.(e.pointerId);
@@ -1101,7 +1076,7 @@ export const Ripple: React.FC<RippleProps> = ({
             )}
 
             {/* Onde audio : niveau mesuré sur un extrait local, jamais sur l'horloge simulée. */}
-            {!isBack && (
+            {(
               <circle
                 ref={audioPulseRef}
                 cx={C}
@@ -1181,9 +1156,8 @@ export const Ripple: React.FC<RippleProps> = ({
                   );
                 })}
 
-                {/* Interest Rings — face A uniquement, le dos reste photos seules */}
-                {!isBack &&
-                  INTERESTS.map((it, i) => (
+                {/* Anneaux d’intérêts permanents */}
+                {INTERESTS.map((it, i) => (
                     <circle
                       key={it.id}
                       cx={C}
@@ -1197,7 +1171,7 @@ export const Ripple: React.FC<RippleProps> = ({
                   ))}
 
                 {/* ---------- Cordes de synergie (liens entre personnes) ---------- */}
-                {!isBack && relationsVisible && person && personLinks.length > 0 && (
+                {relationsVisible && person && personLinks.length > 0 && (
                   <g key={`relations-${person.id}-${relationPulse}`} pointerEvents="none">
                     {personLinks.slice(0, 14).map((link, index) => {
                       const otherId = link.a === person.id ? link.b : link.a;
@@ -1231,9 +1205,8 @@ export const Ripple: React.FC<RippleProps> = ({
                   strokeWidth={1.5}
                 />
 
-                {/* Pastilles d'intérêts — face A uniquement */}
-                {!isBack &&
-                  ORDER.map((id) =>
+                {/* Pastilles d’intérêts */}
+                {ORDER.map((id) =>
                     personData[id].interests.map((it) => {
                       const ri = INTERESTS.findIndex((k) => k.id === it);
                       const p = polar(R.ring0 + ri * RING_GAP, ANGLE[id]);
@@ -1254,14 +1227,14 @@ export const Ripple: React.FC<RippleProps> = ({
                     })
                   )}
 
-                {/* Face A : points couleur par table — Face B : photos seules, sans contour */}
+                {/* Repères colorés, portraits accessibles à droite */}
                 {ORDER.map((id) => {
                   const p = polar(R.people, ANGLE[id]);
                   const isFocus = person?.id === id;
                   const music = nowTrack?.by === id;
                   const impacted = causalHighlight && impactedPeopleIds.includes(id);
                   const dotColor = GROUP_ARC.find((g) => g.id === TABLE_OF[id]?.id)?.color ?? INK;
-                  if (!isBack) {
+                  
                     const dotR = isFocus ? 14 : 9;
                     return (
                       <g
@@ -1284,51 +1257,9 @@ export const Ripple: React.FC<RippleProps> = ({
                         <title>{`${fullName(personData[id])} · ${personData[id].job}`}</title>
                       </g>
                     );
-                  }
-                  const baseR = isFocus ? 30 : 22;
-                  return (
-                    <g
-                      key={id}
-                      className="cursor-pointer"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={() => choose({ kind: 'person', id })}
-                    >
-                      <clipPath id={`${instanceId.current}-p-${id}`}>
-                        <circle cx={p.x} cy={p.y} r={baseR} />
-                      </clipPath>
-                      <image
-                        href={personPhoto(id)}
-                        x={p.x - baseR}
-                        y={p.y - baseR}
-                        width={baseR * 2}
-                        height={baseR * 2}
-                        clipPath={`url(#${instanceId.current}-p-${id})`}
-                        preserveAspectRatio="xMidYMid slice"
-                      />
-                      {isFocus && <circle cx={p.x} cy={p.y} r={baseR + 6} fill="none" stroke={dotColor} strokeWidth={3} />}
-                      {music && (
-                        <g>
-                          <circle cx={p.x - baseR * 0.72} cy={p.y - baseR * 0.72} r={8} fill={INK} stroke="#fff" strokeWidth={1.5} />
-                          <text
-                            x={p.x - baseR * 0.72}
-                            y={p.y - baseR * 0.72 + 0.5}
-                            textAnchor="middle"
-                            dominantBaseline="central"
-                            fontSize={10}
-                            fontWeight="900"
-                            fill="#fff"
-                          >
-                            ♪
-                          </text>
-                        </g>
-                      )}
-                      <title>{`${fullName(personData[id])} · ${personData[id].job}`}</title>
-                    </g>
-                  );
-                })}
+                                  })}
 
-                {/* Rotating Meeting Needle — face A uniquement */}
-                {!isBack && (
+                {/* Aiguille de sélection des personnes */}
                 <g style={{ transform: `rotate(${angle}deg)`, transformOrigin: `${C}px ${C}px` }} pointerEvents="none">
                   <line
                     x1={C}
@@ -1342,10 +1273,9 @@ export const Ripple: React.FC<RippleProps> = ({
                   />
                   <circle cx={C} cy={C - R.people + 34} r={5} fill={INK} stroke="#fff" strokeWidth={1.5} />
                 </g>
-                )}
               </g>
             )}
-          {!isBack && causalHighlight && show('day') && (
+          {causalHighlight && show('day') && (
             <g data-testid="public-causal-paths" pointerEvents="none">
               {causalDemoLinks().map((link,i)=>{
                 const a=timeAngle(link.sourceMinute);
@@ -1360,182 +1290,19 @@ export const Ripple: React.FC<RippleProps> = ({
               })}
             </g>
           )}
-          {!isBack && (
+          {(
             <circle cx={C} cy={C} r={R.hours} fill="none" stroke="transparent" strokeWidth={30}
               className="ripple-time-scrub-hit" data-testid="timeline-scrub-ring"
               style={{touchAction:'none',cursor:'crosshair'}}>
               <title>Glissez pour explorer les instants de 15 h à 5 h</title>
             </circle>
           )}
-          {!isBack && <ClockDial minutes={exploreMinute} />}
+          <ClockDial minutes={exploreMinute} />
           </svg>
 
-          {/* ---------- Vue photo, uniquement sur la face B ---------- */}
-          {/* Overlay ancré au centre géométrique : l'avatar/disque vert est
-              positionné EXACTEMENT au centre du cercle (top/left:50% + translate -50%),
-              et le bloc nom/titre est placé sous lui. Ainsi le rond central
-              n'est plus décalé vers le haut par la hauteur du texte. */}
-          {isBack && (
-          <div className="absolute inset-0 pointer-events-none">
-            <div
-              key={JSON.stringify(focus)}
-              className="news-swap absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center text-center"
-              style={{ width: '31.5%' /* ~2 × centerDiskRatio − petite marge */ }}
-            >
-              {person && !isBack && (
-                <>
-                  <span
-                    className="w-[72%] max-w-[144px] aspect-square rounded-full flex items-center justify-center text-[28px] sm:text-[38px] font-extrabold shrink-0"
-                    style={{
-                      background: GROUP_ARC.find((g) => g.id === TABLE_OF[person.id]?.id)?.color ?? INK,
-                      color: '#fff',
-                      boxShadow: '0 8px 28px rgba(0,0,0,0.14)'
-                    }}
-                  >
-                    {person.first.charAt(0)}
-                    {person.last.charAt(0)}
-                  </span>
-                  <p className="mt-1.5 text-[13px] sm:text-[18px] font-extrabold tracking-tight leading-tight px-1" style={{ color: INK }}>
-                    {fullName(person)}
-                  </p>
-                  <p className="text-[10px] sm:text-[12px] font-semibold mt-0.5 px-1" style={{ color: BODY }}>
-                    {person.job}
-                  </p>
-                </>
-              )}
-              {person && isBack && (
-                <>
-                  <img
-                    src={personPhoto(person.id)}
-                    alt=""
-                    className="w-[86%] max-w-[172px] aspect-square rounded-full object-cover shrink-0"
-                    style={{ boxShadow: '0 10px 32px rgba(0,0,0,0.16)' }}
-                  />
-                  <p className="mt-2 text-[13px] sm:text-[18px] font-extrabold tracking-tight leading-tight px-1" style={{ color: INK }}>
-                    {fullName(person)}
-                  </p>
-                  <p className="text-[10px] sm:text-[12px] font-semibold mt-0.5 px-1" style={{ color: BODY }}>
-                    {person.job} · {TABLE_OF[person.id]?.name}
-                  </p>
-                  {person.id === account.profileId ? (
-                    <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1 pointer-events-auto">
-                      <span
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10.5px] font-bold"
-                        style={{
-                          background:
-                            account.rsvp === 'yes'
-                              ? 'rgba(30,122,57,0.12)'
-                              : account.rsvp === 'no'
-                                ? 'rgba(199,52,43,0.12)'
-                                : 'rgba(230,161,0,0.14)',
-                          color: account.rsvp === 'yes' ? '#1E7A39' : account.rsvp === 'no' ? '#C7342B' : '#9A5B00'
-                        }}
-                      >
-                        {account.rsvp === 'yes' ? `Présent · ${account.partySize}` : account.rsvp === 'no' ? 'Absent' : 'À confirmer'}
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="mt-1 text-[9px] sm:text-[11px] font-medium px-1 line-clamp-2" style={{ color: MUTED }}>
-                      {person.seeking}
-                    </p>
-                  )}
-                </>
-              )}
-              {moment && (
-                <>
-                  <p className="text-[12px] sm:text-[14px] font-extrabold tabular" style={{ color: moment.retard ? '#C7342B' : INK }}>
-                    {moment.at}{moment.retard ? ` · +${moment.retard} min` : ''}
-                  </p>
-                  <p className="mt-1 text-[15px] sm:text-[20px] font-extrabold leading-tight px-1" style={{ color: INK }}>
-                    {moment.title}
-                  </p>
-                  <p className="text-[11px] sm:text-[13px] font-semibold mt-0.5 px-1" style={{ color: BODY }}>
-                    {moment.lieu}
-                  </p>
-                </>
-              )}
-              {track && (
-                <>
-                  <span
-                    className="w-[55%] max-w-[110px] aspect-square rounded-full flex items-center justify-center text-[22px] sm:text-[28px] font-black shrink-0"
-                    style={{ background: SETS[track.set].color, color: '#fff' }}
-                  >
-                    ♪
-                  </span>
-                  <p className="mt-2 text-[14px] sm:text-[18px] font-extrabold leading-tight px-1" style={{ color: INK }}>
-                    {track.title}
-                  </p>
-                  <p className="text-[11px] sm:text-[13px] font-semibold px-1" style={{ color: BODY }}>
-                    {track.artist}
-                  </p>
-                  <p className="text-[10px] sm:text-[12px] font-medium mt-0.5 px-1" style={{ color: MUTED }}>
-                    {fmt(track.start)} · {NET_BY_ID[track.by]?.first}
-                  </p>
-                </>
-              )}
-              {media && (
-                <>
-                  <span
-                    className="w-[55%] max-w-[110px] aspect-square rounded-full flex items-center justify-center text-[13px] sm:text-[15px] font-black shrink-0"
-                    style={{ background: MEDIA_TYPE_META[media.type].color, color: '#fff' }}
-                  >
-                    {MEDIA_TYPE_META[media.type].label.charAt(0)}
-                  </span>
-                  <p className="mt-2 text-[12px] sm:text-[14px] font-bold leading-snug line-clamp-2 px-1" style={{ color: INK }}>
-                    {media.legend}
-                  </p>
-                  <p className="text-[10px] sm:text-[12px] font-medium px-1" style={{ color: MUTED }}>
-                    {media.at} · {fullName(NET_BY_ID[media.author])}
-                  </p>
-                </>
-              )}
-              {dayFocus !== null && (
-                <>
-                  <p className="text-[10px] sm:text-[12px] font-extrabold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
-                    Calendrier {YEAR}
-                  </p>
-                  <p className="mt-1 text-[15px] sm:text-[20px] font-extrabold leading-tight px-1" style={{ color: INK }}>
-                    {new Date(YEAR, 0, dayFocus + 1).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                  </p>
-                  {(() => {
-                    const mk = CAL_MARKERS.find((m) => DAY_J_DOY + m.offset === dayFocus);
-                    const diff = DAY_J_DOY - dayFocus;
-                    return (
-                      <p className="mt-1 text-[11px] sm:text-[13px] font-medium px-1" style={{ color: BODY }}>
-                        {mk ? `${mk.label} · ${mk.detail}` : diff > 0 ? `J-${diff} avant le mariage` : diff < 0 ? `J+${-diff} après le mariage` : ''}
-                      </p>
-                    );
-                  })()}
-                </>
-              )}
-              {journeySel && (
-                <>
-                  <span
-                    className="w-[45%] max-w-[90px] aspect-square rounded-full shrink-0"
-                    style={{ background: JOURNEY_COLORS[journeySel.kind] ?? '#8e8e93' }}
-                  />
-                  <p className="mt-2 text-[11px] sm:text-[13px] font-bold tabular px-1" style={{ color: MUTED }}>
-                    {new Date(`${journeySel.date}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </p>
-                  <p className="mt-1 text-[15px] sm:text-[20px] font-extrabold leading-tight px-1" style={{ color: INK }}>
-                    {journeySel.title}
-                  </p>
-                  {journeySel.detail && (
-                    <p className="mt-1 text-[11px] sm:text-[13px] leading-snug line-clamp-2 px-1" style={{ color: BODY }}>
-                      {journeySel.detail}
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-          )}
         </div>
           </div>
         <div className="ripple-watch-controls" role="toolbar" aria-label="Commandes du cadran">
-          <button type="button" className="ripple-circle-control" aria-label={isBack ? 'Voir le cadran recto' : 'Voir les photos au verso'} title={isBack ? 'Cadran' : 'Photos'} onClick={() => flipTo(isBack ? 'front' : 'back')}>
-            {isBack ? <Layers className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
-          </button>
           <button type="button" className="ripple-circle-control" aria-pressed={relationsVisible} aria-label={relationsVisible ? 'Masquer les relations' : 'Afficher les relations'} title="Connexions" onClick={() => setRelationsVisible(v => !v)}>
             <Network className="w-4 h-4" />
           </button>
@@ -1555,7 +1322,9 @@ export const Ripple: React.FC<RippleProps> = ({
         <aside className="ripple-inspector" aria-label="Comprendre et agir">
           <InstantInspector
             minute={exploreMinute} selectedKind={focus.kind} selectedTitle={focusTitle}
-            moment={activeMoment} people={activePeople}
+            moment={activeMoment}
+            selectedPerson={selectedPerson} contextPeople={contextPeople}
+            effectPeople={effectPeople} onPerson={id=>choose({kind:'person',id})}
             playingTitle={nowTrack?.title ?? null} following={followDemo}
             onMinute={chooseInstant}
             onFollow={() => {
@@ -1681,7 +1450,8 @@ const SelectionDetail: React.FC<DetailProps> = ({
       <div key={JSON.stringify(focus)} className="news-swap mt-4 space-y-4 min-h-[160px]">
         {person && (
           <>
-            <div>
+            <div className="ripple-detail-person">
+              <div className="min-w-0">
               <p className="text-[22px] font-extrabold tracking-tight" style={{ color: INK }}>
                 {person.first} {person.last}
               </p>
@@ -1697,6 +1467,8 @@ const SelectionDetail: React.FC<DetailProps> = ({
                   {account.rsvp !== 'no' && account.meal ? ` · ${account.meal === 'poisson' ? 'Filet de bar' : account.meal === 'volaille' ? 'Suprême de volaille' : 'Végétarien'}` : ''}
                 </p>
               )}
+              </div>
+              <ProfilePortrait name={fullName(person)} src={photoOf(account, person.id)} size="large" />
             </div>
 
             {personLinks.length > 0 && (
@@ -1713,12 +1485,7 @@ const SelectionDetail: React.FC<DetailProps> = ({
                           onClick={() => choose({ kind: 'person', id: other.id })}
                           className="w-full flex items-center gap-3 py-2 text-left group"
                         >
-                          <img
-                            src={photoOf(account, other.id)}
-                            alt=""
-                            className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-white shadow-sm group-hover:scale-105 transition-transform"
-                          />
-                          <span className="min-w-0">
+                          <span className="min-w-0 flex-1">
                             <span className="block text-[14px] font-bold truncate group-hover:text-[#0066cc]" style={{ color: INK }}>
                               {l.why} · {other.first} {other.last}
                             </span>
@@ -1727,6 +1494,7 @@ const SelectionDetail: React.FC<DetailProps> = ({
                               {common.length ? ` · ${common.map((c) => INTEREST_BY_ID[c].label).join(', ')}` : ''}
                             </span>
                           </span>
+                          <ProfilePortrait name={fullName(other)} src={photoOf(account, other.id)} size="medium" />
                         </button>
                       </li>
                     );
@@ -2079,7 +1847,6 @@ const LayerList: React.FC<LayerListProps> = ({ activeLayer, focus, account, jour
                   const p = personRecord(account, id);
                   return row(id, focus.kind === 'person' && focus.id === id, () => choose({ kind: 'person', id }), (
                     <>
-                      <img src={photoOf(account, id)} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 border border-black/10" loading="lazy" />
                       <span className="min-w-0 flex-1">
                         <span className="block text-[13.5px] font-bold truncate" style={{ color: INK }}>
                           {p.first} {p.last}
@@ -2088,6 +1855,7 @@ const LayerList: React.FC<LayerListProps> = ({ activeLayer, focus, account, jour
                           {p.job}
                         </span>
                       </span>
+                      <ProfilePortrait name={fullName(p)} src={photoOf(account, id)} size="small" />
                     </>
                   ));
                 })}

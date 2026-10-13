@@ -23,5 +23,14 @@ describe('RIPPLECIRCLE — instrument centré', () => {
     expect(ripple).toContain('<ClockDial');
     expect(ripple).toContain('ripple-context-fold');
     expect(ripple).toContain('timeline-scrub-ring');
+    expect(ripple).toContain('ProfilePortrait');
+    expect(ripple).not.toContain('isBack');
+    expect(ripple).not.toContain('flipTo(');
+    expect(ripple).not.toContain('Voir les photos au verso');
+    expect(ripple).not.toContain("e.key === 'f'");
+    const inspector = readFileSync(resolve(__dirname, '../InstantInspector.tsx'), 'utf8');
+    expect(inspector).toContain('ripple-context-person');
+    expect(inspector).toContain('ripple-effect-avatar');
+    expect(inspector).toContain('ripple-selected-person');
   });
 });

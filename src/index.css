@@ -858,45 +858,6 @@ input[type="range"].ios-slider {
 }
 
 
-/* ---------- Ripple : retournement Face A / Face B ---------- */
-@keyframes rippleFlipOut {
-  from {
-    transform: perspective(1800px) rotateY(0deg);
-    opacity: 1;
-  }
-  to {
-    transform: perspective(1800px) rotateY(88deg);
-    opacity: 0.35;
-  }
-}
-
-@keyframes rippleFlipIn {
-  from {
-    transform: perspective(1800px) rotateY(-88deg);
-    opacity: 0.35;
-  }
-  to {
-    transform: perspective(1800px) rotateY(0deg);
-    opacity: 1;
-  }
-}
-
-.ripple-flip-out {
-  animation: rippleFlipOut 0.26s ease-in both;
-}
-
-.ripple-flip-in {
-  animation: rippleFlipIn 0.32s ease-out both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ripple-flip-out,
-  .ripple-flip-in {
-    animation: none;
-  }
-}
-
-
 /* V2 — liens contextuels : pas de toile d'araignée permanente. */
 @keyframes rippleRelationFlow {
   from { stroke-dashoffset: 32; }
@@ -1359,4 +1320,42 @@ input[type="range"].ios-slider {
 @media(max-width:540px) {
   .account-data-grid {grid-template-columns:minmax(0,1fr);}
   .account-data-card,.account-data-intro {padding:13px;}
+}
+
+
+/* V5 : une face, portraits contextuels à droite des informations. */
+.ripple-profile-portrait {
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  width:36px;height:36px;min-width:36px;aspect-ratio:1;overflow:hidden;
+  flex-shrink:0;border-radius:50%;
+  background:#E9EFF8;color:#283C54;
+  border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.11);
+}
+.ripple-profile-portrait--medium {width:43px;height:43px;min-width:43px;}
+.ripple-profile-portrait--large {width:62px;height:62px;min-width:62px;}
+.ripple-profile-portrait-initials {font-size:11px;font-weight:850;letter-spacing:.015em;}
+.ripple-profile-portrait--medium .ripple-profile-portrait-initials {font-size:13px;}
+.ripple-profile-portrait--large .ripple-profile-portrait-initials {font-size:17px;}
+.ripple-profile-portrait-image {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.ripple-selected-person {display:flex;justify-content:space-between;align-items:center;gap:10px;min-width:0;}
+.ripple-context-people {margin-top:11px;padding-top:8px;border-top:1px solid var(--ripple-line,rgba(0,0,0,.1));}
+.ripple-context-people > .ripple-context-caption {margin-bottom:4px;}
+.ripple-context-person {
+  display:flex;width:100%;min-width:0;align-items:center;justify-content:space-between;gap:8px;
+  padding:5px 3px;border-radius:7px;text-align:left;
+}
+.ripple-context-person:hover,.ripple-effect-avatar:hover {background:rgba(10,132,255,.07);}
+.ripple-context-person:focus-visible,.ripple-effect-avatar:focus-visible {
+  outline:2px solid #0A84FF;outline-offset:2px;
+}
+.ripple-person-text {display:grid;gap:2px;min-width:0;flex:1;}
+.ripple-person-text strong {font-size:11px;line-height:1.25;font-weight:800;overflow-wrap:anywhere;}
+.ripple-person-text small {font-size:10px;line-height:1.25;color:var(--ripple-muted,#515154);}
+.ripple-effect-person {display:flex;align-items:center;justify-content:space-between;gap:9px;min-width:0;}
+.ripple-effect-copy {display:flex;flex:1;min-width:0;flex-direction:column;gap:1px;font-size:11px;line-height:1.35;}
+.ripple-effect-copy strong {font-weight:800;text-transform:capitalize;font-size:10px;color:var(--ripple-muted,#515154);}
+.ripple-effect-avatar {flex-shrink:0;border-radius:50%;padding:2px;}
+.ripple-detail-person {display:flex;min-width:0;align-items:flex-start;justify-content:space-between;gap:12px;}
+@media(max-width:480px) {
+  .ripple-profile-portrait--large {width:55px;height:55px;min-width:55px;}
 }
