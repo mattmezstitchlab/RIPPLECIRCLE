@@ -18,8 +18,10 @@ describe('RIPPLECIRCLE — instrument centré', () => {
     expect(landing).not.toContain('<nav');
     expect(landing).toContain('Compte');
     expect(ripple).toContain('ripple-orbit-nav');
-    expect(ripple).toContain('CausalBrief');
+    expect(ripple).toContain('InstantInspector');
+    expect(ripple).toContain('PublicIncidentDemo');
     expect(ripple).toContain('<ClockDial');
-    expect(ripple).toContain('ripple-inspector-fold');
+    expect(ripple).toContain('ripple-context-fold');
+    expect(ripple).toContain('timeline-scrub-ring');
   });
 });
