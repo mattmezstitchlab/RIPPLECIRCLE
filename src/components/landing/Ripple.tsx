@@ -258,6 +258,7 @@ export const Ripple: React.FC<RippleProps> = ({
   const [publicMode, setPublicMode] = useState<PublicMode>('observe');
   const [publicDelay, setPublicDelay] = useState(10);
   const [publicPlan, setPublicPlan] = useState<RepairId | null>(null);
+  const viewMode = publicMode === 'observe' ? 'explore' : publicMode === 'replay' ? 'replay' : 'simulate';
 
   // Per-instance unique id for SVG clipPaths (avoids collisions if multiple Ripple instances mount).
 
@@ -506,7 +507,11 @@ export const Ripple: React.FC<RippleProps> = ({
 
   const overview = activeLayer === 'overview';
   const show = (layer: Exclude<RippleLayer, 'overview'>) => {
-    return compact ? layer === activeLayer || ((overview || activeLayer === 'playlist') && (layer === 'people' || layer === 'playlist' || layer === 'day')) : true;
+    // Minimal at rest: day and people. Extra rings only in their selected layer.
+    if (overview || activeLayer === 'day') return layer === 'day' || layer === 'people';
+    if (activeLayer === 'playlist') return layer === 'playlist' || layer === 'day' || layer === 'people';
+    if (activeLayer === 'people') return layer === 'people' || layer === 'day';
+    return layer === activeLayer || (layer === 'people' && !compact);
   };
   const emphasis = (_layer: Exclude<RippleLayer, 'overview'>) => 1;
   const interactive = (layer: Exclude<RippleLayer, 'overview'>) => overview || layer === activeLayer;
@@ -619,36 +624,40 @@ export const Ripple: React.FC<RippleProps> = ({
 
   return (
     <main className="max-w-[1680px] mx-auto px-4 sm:px-6 pt-3 pb-5">
-      <div className="ripple-public-hero" aria-label="Explorer un imprévu fictif">
-        <div className="ripple-public-hero-copy">
-          <p className="ripple-public-kicker">RIPPLECIRCLE · Démonstration</p>
+      <div className="ripple-v6-topbar" aria-label="Navigation principale de RIPPLECIRCLE">
+        <div className="ripple-v6-intro">
+          <p className="ripple-public-kicker">RIPPLECIRCLE · Mariage fictif</p>
           <h1>Quand un détail change, voyez tout ce qu’il entraîne.</h1>
-          <p>Simulez les effets, remontez une chaîne explicative et comparez des plans B sur un mariage fictif.</p>
         </div>
-        <div className="ripple-public-hero-actions" role="group" aria-label="Actions de démonstration">
-          {([
-            { id:'simulate', label:'Simuler un imprévu' },
-            { id:'trace', label:'Trouver la première cause' },
-            { id:'repair', label:'Réparer le planning' }
-          ] as const).map(action => (
-            <button type="button" key={action.id} className="ripple-hero-cta"
-              aria-pressed={publicMode === action.id}
-              onClick={() => {
-                setPublicMode(action.id);
-                setFollowDemo(false);
-                setTurning(false);
-                setExploreMinute(timeToMinutesFrom17('21:08'));
-                setFocus({ kind:'moment',id:'d7' });
-                setPublicPlan(null);
-              }}>{action.label}</button>
-          ))}
-          {publicMode!=='observe' && <button type="button" className="ripple-hero-reset"
-            onClick={() => {setPublicMode('observe');setPublicPlan(null);}}>Fermer</button>}
+        <div className="ripple-v6-modes" role="group" aria-label="Mode d’exploration">
+          <button type="button" aria-pressed={viewMode === 'explore'} className="ripple-v6-mode"
+            onClick={() => { setPublicMode('observe'); setPublicPlan(null); }}>
+            Explorer
+          </button>
+          <button type="button" aria-pressed={viewMode === 'simulate'} className="ripple-v6-mode"
+            onClick={() => {
+              setPublicMode('simulate');
+              setFollowDemo(false);
+              setExploreMinute(timeToMinutesFrom17('21:08'));
+              setFocus({kind:'moment',id:'d7'});
+            }}>
+            Et si ?
+          </button>
+          <button type="button" aria-pressed={viewMode === 'replay'} className="ripple-v6-mode"
+            onClick={() => {setPublicMode('replay');setFollowDemo(false);}}>
+            Rejouer
+          </button>
         </div>
       </div>
       {/* Un instrument central : les vues se choisissent autour du cadran. */}
       <div className="ripple-stage">
         <div className="ripple-watch-column">
+          <details className="ripple-v6-layers">
+            <summary className="ripple-v6-layers-summary">
+              <Layers className="w-3.5 h-3.5" />
+              {activeLayer === 'overview' ? 'Explorer les couches' : ORBIT.find(item=>item.id===activeLayer)?.label}
+              <span className="ripple-v6-layers-hint">Calendrier · Musique · Personnes · Plus</span>
+            </summary>
           <nav className="ripple-orbit-nav" aria-label="Couches du cadran">
             {ORBIT.map(item => {
               const Icon = item.icon;
@@ -674,6 +683,7 @@ export const Ripple: React.FC<RippleProps> = ({
               );
             })}
           </nav>
+          </details>
           <div className="ripple-watch-wrap">
         <div
           className="relative w-full mx-auto aspect-square outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/50 rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.08)]"
@@ -1110,7 +1120,7 @@ export const Ripple: React.FC<RippleProps> = ({
             {show('people') && (
               <g opacity={emphasis('people')} pointerEvents={interactive('people') ? 'auto' : 'none'}>
                 {/* Table Arcs with readable names */}
-                {GROUP_ARC.map((g) => {
+                {activeLayer === 'people' && GROUP_ARC.map((g) => {
                   const label = polar(R.tables + 2, (g.a0 + g.a1) / 2);
                   const on = person && TABLE_OF[person.id]?.id === g.id;
                   return (
@@ -1156,8 +1166,8 @@ export const Ripple: React.FC<RippleProps> = ({
                   );
                 })}
 
-                {/* Anneaux d’intérêts permanents */}
-                {INTERESTS.map((it, i) => (
+                {/* Les centres d’intérêt n’apparaissent que dans la couche Personnes. */}
+                {activeLayer === 'people' && INTERESTS.map((it, i) => (
                     <circle
                       key={it.id}
                       cx={C}
@@ -1205,8 +1215,8 @@ export const Ripple: React.FC<RippleProps> = ({
                   strokeWidth={1.5}
                 />
 
-                {/* Pastilles d’intérêts */}
-                {ORDER.map((id) =>
+                {/* Pastilles d’intérêt, accessibles dans Personnes. */}
+                {activeLayer === 'people' && ORDER.map((id) =>
                     personData[id].interests.map((it) => {
                       const ri = INTERESTS.findIndex((k) => k.id === it);
                       const p = polar(R.ring0 + ri * RING_GAP, ANGLE[id]);
@@ -1321,6 +1331,14 @@ export const Ripple: React.FC<RippleProps> = ({
         {/* Une seule colonne : le contexte visible et les outils avancés repliés. */}
         <aside className="ripple-inspector" aria-label="Comprendre et agir">
           <InstantInspector
+            mode={viewMode}
+            incidentDelay={publicDelay}
+            planCount={3}
+            onSimulate={() => {
+              setPublicMode('simulate');
+              setExploreMinute(timeToMinutesFrom17('21:08'));
+              setFocus({kind:'moment',id:'d7'});
+            }}
             minute={exploreMinute} selectedKind={focus.kind} selectedTitle={focusTitle}
             moment={activeMoment}
             selectedPerson={selectedPerson} contextPeople={contextPeople}
