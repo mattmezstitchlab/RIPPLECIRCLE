@@ -4,7 +4,7 @@ import { useOrchestra } from '../../hooks/useOrchestra';
 import { Ripple, RippleLayer } from './Ripple';
 import { AccountPage } from './AccountPage';
 import { usePersistentState } from '../../hooks/usePersistentState';
-import { AccountState, INITIAL_ACCOUNT } from '../../data/account';
+import { AccountState, INITIAL_ACCOUNT, migrateAccountLightOnly } from '../../data/account';
 
 type Page = RippleLayer | 'account';
 
@@ -21,18 +21,20 @@ export const Landing: React.FC = () => {
   const [accountToast, setAccountToast] = useState<string | null>(null);
 
   useEffect(() => {
-    const previous = document.body.style.background;
-    document.body.style.background = account.theme === 'night' ? '#0b0b0d' : '#ffffff';
     const onHash = () => setLayer(readLayer());
     window.addEventListener('hashchange', onHash);
-    return () => {
-      document.body.style.background = previous;
-      window.removeEventListener('hashchange', onHash);
-    };
-  }, [account.theme]);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  // Migrate browser profiles: old theme value is dropped, other fields survive.
+  useEffect(() => {
+    if (Object.prototype.hasOwnProperty.call(account, 'theme')) {
+      setAccount(migrateAccountLightOnly(account));
+    }
+  }, [account, setAccount]);
 
   return (
-    <div className={`min-h-screen overflow-x-hidden ${account.theme === 'night' ? 'theme-night' : 'theme-day'}`}>
+    <div className="ripple-app min-h-screen overflow-x-hidden">
       <header className="fixed top-0 inset-x-0 z-50 h-[56px] ripple-header backdrop-blur-xl backdrop-saturate-150 border-b">
         <div className="max-w-[1680px] mx-auto h-full px-4 sm:px-6 flex items-center justify-between gap-4">
           <div className="min-w-0 flex items-center gap-2.5" aria-label="RIPPLECIRCLE">
@@ -67,7 +69,6 @@ export const Landing: React.FC = () => {
           <Ripple
             activeLayer={layer}
             account={account}
-            theme={account.theme}
             minutes={orchestra.minutes}
             paused={orchestra.paused}
             manual={orchestra.manual}
