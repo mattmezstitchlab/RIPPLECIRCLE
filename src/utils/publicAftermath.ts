@@ -108,7 +108,7 @@ export function buildPublicReplay(delay:number,selected:RepairId|null):ReplayFra
      title:plan?'Plan proposé : '+plan.title:'Aucun plan sélectionné',
      description:plan?'Option fictive retenue localement ; aucune consigne transmise.':'Le conducteur reste projeté sans plan correctif.',
      status:'option fictive',planOpening:opening,affectedId:'d8'},
-    ...simulation.affected.slice(0,3).map((affected,i):ReplayFrame=>({
+    ...simulation.affected.slice(0,3).map((affected):ReplayFrame=>({
       id:'impact-'+affected.id,minute:timeToMinutesFrom17(affected.expected),
       kind:'consequence',title:affected.label,
       description:'Référence : '+affected.expected+' · sans plan : '+affected.shifted,

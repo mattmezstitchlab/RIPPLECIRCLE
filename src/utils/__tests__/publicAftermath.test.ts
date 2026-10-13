@@ -33,6 +33,6 @@ describe('RIPPLECIRCLE V4 — démonstration publique sans moteur privé',()=>{
     const replay=buildPublicReplay(10,null);
     expect(replay.find(e=>e.id==='choice')?.title).toContain('Aucun plan');
     expect(replayComparison(10,null).withPlan).toBeNull();
-    expect(replay.every(e=>e.status!=='réel')).toBe(true);
+    expect(replay.every(e=>['référence','projection','option fictive'].includes(e.status))).toBe(true);
   });
 });

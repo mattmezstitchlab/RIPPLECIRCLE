@@ -115,7 +115,7 @@ try {
       await page.screenshot({ path: OUTPUT + '/' + size.id + '-indirect.png', fullPage:true, animations:'disabled', timeout:15000 });
     }
     await toolsNav.getByRole('button', { name: 'Répartir les actions' }).click();
-    if (await page.locator('.ripple-v4-assignment').count() !== 2) findings.push({ size:size.id, kind:'v4-action-drafts-failed' });
+    if (await page.locator('.ripple-v4-assignment').count() !== 3) findings.push({ size:size.id, kind:'v4-action-drafts-failed' });
     await page.locator('.ripple-v4-assignment .ripple-v4-ready').first().click();
     if (!await page.locator('.ripple-v4-ready[aria-pressed="true"]').count()) findings.push({ size:size.id, kind:'v4-local-action-confirmation-failed' });
     if (['desktop-1600', 'mobile-390'].includes(size.id)) {
