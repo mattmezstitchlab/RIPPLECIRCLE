@@ -56,7 +56,9 @@ export const PublicAftermathDemo:React.FC<Props>=({mode,delay,selectedPlan,onMod
   };
   return (
     <section className="ripple-v4" aria-label="Explorer les conséquences, actions et replay">
-      <div className="ripple-v4-nav" role="group" aria-label="Outils complémentaires de démonstration">
+      <details className="ripple-v6-advanced-tools">
+        <summary>Autres outils · impacts et actions</summary>
+        <div className="ripple-v4-nav" role="group" aria-label="Outils complémentaires de démonstration">
         {v4Modes.map(item=>{
           const Icon=item.icon;
           return <button type="button" key={item.id} aria-pressed={mode===item.id}
@@ -64,7 +66,8 @@ export const PublicAftermathDemo:React.FC<Props>=({mode,delay,selectedPlan,onMod
             <Icon className="w-3.5 h-3.5" aria-hidden="true"/>{item.label}
           </button>;
         })}
-      </div>
+        </div>
+      </details>
       {mode==='indirect'&&(
         <div className="ripple-v4-body">
           <header className="ripple-v4-heading">

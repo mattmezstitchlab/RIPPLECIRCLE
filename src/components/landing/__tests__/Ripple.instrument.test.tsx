@@ -23,6 +23,13 @@ describe('RIPPLECIRCLE — instrument centré', () => {
     expect(ripple).toContain('<ClockDial');
     expect(ripple).toContain('ripple-context-fold');
     expect(ripple).toContain('timeline-scrub-ring');
+    expect(ripple).toContain('ripple-v6-modes');
+    expect(ripple).toContain('ripple-v6-layers');
+    expect(ripple).not.toContain('ripple-public-hero-actions');
+    expect(ripple).toContain("layer === 'day' || layer === 'people'");
+    const inspectorSource=readFileSync(resolve(__dirname, '../InstantInspector.tsx'), 'utf8');
+    expect(inspectorSource).toContain('Comprendre cet instant');
+    expect(inspectorSource).toContain('Voir le détail et les réglages');
     expect(ripple).toContain('ProfilePortrait');
     expect(ripple).not.toContain('isBack');
     expect(ripple).not.toContain('flipTo(');
@@ -31,6 +38,6 @@ describe('RIPPLECIRCLE — instrument centré', () => {
     const inspector = readFileSync(resolve(__dirname, '../InstantInspector.tsx'), 'utf8');
     expect(inspector).toContain('ripple-context-person');
     expect(inspector).toContain('ripple-effect-avatar');
-    expect(inspector).toContain('ripple-selected-person');
+    expect(inspector).toContain('ripple-v6-summary-heading');
   });
 });

@@ -96,3 +96,12 @@ L'espace Compte présente quatre sections : **Profil** (coordonnées et centres 
 - Cliquer une vignette permet de sélectionner la personne correspondante dans le cadran sans changer de face.
 - Avatar avec initiales de secours en cas d'absence ou d’échec de chargement d’une photo externe.
 - Ce changement n’ajoute ni authentification ni partage réel de portraits ; les profils restent fictifs/localement modifiés.
+
+
+## V6 — Zéro surcharge
+
+Le site public utilise une seule face 2D et **trois modes principaux** : Explorer, Et si ?, Rejouer. Sur la vue par défaut, seuls le temps, les moments et les personnes sont dessinés. Les couches Calendrier, Parcours, Souvenirs, Musique et l’affichage détaillé des intérêts sont accessibles via **Explorer les couches**. Le cadran et ses interactions au clavier sont conservés.
+
+L’inspecteur montre une fiche unique condensée : instant, titre, personnes avec portraits et, pour l’incident fictif, retard, rôles touchés et nombre d'options. Les explications, conséquences détaillées, régie et fiches historiques s’ouvrent sur demande. Le mode Et si ? donne toujours accès au curseur de retard, à la chaîne de causes et à trois plans; le mode Rejouer lance le simulateur de chronologie préparée. Les impacts cachés et consignes restent dans les outils avancés.
+
+Aucun calcul propriétaire du noyau privé n’a été déplacé vers le dépôt public. Aucun événement réel ni notification n’est produit.

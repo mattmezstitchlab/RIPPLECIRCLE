@@ -88,23 +88,51 @@ try {
     if (result.headerAccountCount !== 1) findings.push({ size: size.id, kind: 'header-controls', count: result.headerAccountCount });
     if (size.width >= 1280 && result.dial && result.inspector && result.dial.right > result.inspector.x + 1) findings.push({ size: size.id, kind: 'dial-inspector-overlap' });
 
-    // Réelle interaction utilisateur : trois fonctions de démonstration, pas des CTA inertes.
-    const hero = page.locator('.ripple-public-hero');
-    if (await hero.count() !== 1) findings.push({size:size.id,kind:'hero-missing'});
-    await hero.getByRole('button', { name: 'Simuler un imprévu' }).click();
+    // V6 — THREE primary modes and no seven-button strip at rest.
+    const topbar = page.locator('.ripple-v6-topbar');
+    if (await topbar.count() !== 1) findings.push({size:size.id,kind:'v6-modebar-missing'});
+    if (await topbar.locator('.ripple-v6-mode').count() !== 3)
+      findings.push({size:size.id,kind:'v6-not-three-modes'});
+    if (await page.locator('.ripple-v6-layers').getAttribute('open') !== null)
+      findings.push({size:size.id,kind:'v6-layers-open-at-rest'});
+    if (await page.locator('.ripple-v6-layers .ripple-orbit-nav').isVisible())
+      findings.push({size:size.id,kind:'v6-hidden-layers-visible'});
+    if (await page.locator('.ripple-v6-inspector .ripple-context-steps').count())
+      findings.push({size:size.id,kind:'v6-verbose-inspector-still-shown'});
+    if (await page.locator('.ripple-v6-context-details[open]').count())
+      findings.push({size:size.id,kind:'v6-details-open-at-rest'});
+    if (await page.locator('.ripple-v6-watch-settings[open]').count())
+      findings.push({size:size.id,kind:'v6-settings-open-at-rest'});
+    if (await page.locator('.ripple-v6-watch-settings .ripple-watch-controls').isVisible())
+      findings.push({size:size.id,kind:'v6-hidden-controls-visible'});
+    await page.locator('.ripple-v6-watch-settings > summary').click();
+    await page.getByRole('button',{name:'Zoomer',exact:true}).click();
+    await page.getByRole('button',{name:'Recentrer le cadran'}).click();
+    await page.locator('.ripple-v6-watch-settings > summary').click();
+    await topbar.getByRole('button',{name:'Et si ?'}).click();
     await page.locator('.ripple-demo-explorer').waitFor();
-    if (!await page.getByText('00:10', { exact: true }).count()) findings.push({size:size.id,kind:'scenario-10-failed'});
-    await page.getByRole('button', { name: '+18 min', exact: true }).click();
-    if (!await page.getByText('00:18', { exact: true }).count()) findings.push({size:size.id,kind:'scenario-18-failed'});
-    await hero.getByRole('button',{name:'Réparer le planning'}).click();
-    if (await page.locator('.ripple-repair-option').count() !== 3) findings.push({size:size.id,kind:'repair-options-missing'});
-    await page.screenshot({ path: OUTPUT + '/' + size.id + '-repair.png', fullPage: true, animations: 'disabled', timeout: 15000 });
+    if (!await page.getByText('00:10',{exact:true}).count())
+      findings.push({size:size.id,kind:'scenario-10-failed'});
+    await page.getByRole('button',{name:'+18 min',exact:true}).click();
+    if (!await page.getByText('00:18',{exact:true}).count())
+      findings.push({size:size.id,kind:'scenario-18-failed'});
+    await page.getByRole('button',{name:'Réparer le planning'}).click();
+    if (await page.locator('.ripple-repair-option').count()!==3)
+      findings.push({size:size.id,kind:'repair-options-missing'});
+    if (['desktop-1600','mobile-390'].includes(size.id)) {
+      await page.screenshot({path:OUTPUT+'/'+size.id+'-v6-repair.png',fullPage:true,animations:'disabled',timeout:15000});
+    }
     await page.locator('.ripple-repair-option').first().click();
-    if (!await page.getByText(/Plan sélectionné dans la simulation/).count()) findings.push({size:size.id,kind:'repair-selection-failed'});
-    await hero.getByRole('button',{name:'Trouver la première cause'}).click();
-    if (await page.locator('.ripple-root-chain li').count() !== 5) findings.push({size:size.id,kind:'root-chain-missing'});
-    await hero.getByRole('button',{name:'Fermer'}).click();
-    if (await page.locator('.ripple-demo-explorer').count()) findings.push({size:size.id,kind:'close-simulation-failed'});
+    if (!await page.getByText(/Plan sélectionné dans la simulation/).count())
+      findings.push({size:size.id,kind:'repair-selection-failed'});
+    await page.getByRole('button',{name:'Trouver la première cause'}).click();
+    if (await page.locator('.ripple-root-chain li').count()!==5)
+      findings.push({size:size.id,kind:'root-chain-missing'});
+    await topbar.getByRole('button',{name:'Explorer',exact:true}).click();
+    if (await page.locator('.ripple-demo-explorer').count())
+      findings.push({size:size.id,kind:'close-simulation-failed'});
+    const toolDetails=page.locator('.ripple-v6-advanced-tools');
+    await toolDetails.locator('summary').click();
     // V4 — trois nouveaux outils réellement interactifs sur données fictives.
     const toolsNav = page.locator('.ripple-v4-nav');
     if (await toolsNav.getByRole('button').count() !== 3) findings.push({ size:size.id, kind:'v4-toolbar-missing' });
@@ -152,20 +180,23 @@ try {
     if (await page.locator('.ripple-context-person').count() < 1)
       findings.push({size:size.id,kind:'v5-context-portraits-missing'});
     await page.locator('.ripple-context-person').first().click();
-    await page.locator('.ripple-selected-person [data-testid="person-portrait"]').waitFor();
-    const selectedName=await page.locator('.ripple-selected-person .ripple-context-title').textContent();
+    await page.locator('.ripple-v6-summary-heading [data-testid="person-portrait"]').waitFor();
+    const selectedName=await page.locator('.ripple-v6-summary-heading h2').textContent();
     if (!selectedName || !selectedName.trim())
       findings.push({size:size.id,kind:'v5-person-focus-missing'});
     if (['desktop-1600','mobile-390'].includes(size.id)){
       await page.screenshot({path:OUTPUT+'/'+size.id+'-people-single-face.png',
         fullPage:true,animations:'disabled',timeout:15000});
     }
+    await page.locator('.ripple-v6-layers > summary').click();
     await page.getByRole('button',{name:'Personnes et relations'}).click();
-    if (await page.locator('.ripple-selected-person [data-testid="person-portrait"]').count() !== 1)
+    if (await page.locator('.ripple-v6-summary-heading [data-testid="person-portrait"]').count() !== 1)
       findings.push({size:size.id,kind:'v5-people-layer-portrait-missing'});
+    await page.locator('.ripple-v6-more > summary').click();
     await page.getByText('Explorer les éléments de cette couche').click();
     if (await page.locator('.ripple-context-fold').last().locator('[data-testid="person-portrait"]').count() < 2)
       findings.push({size:size.id,kind:'v5-directory-portraits-missing'});
+    await page.locator('.ripple-v6-layers > summary').click();
     const nav = page.getByRole('button', { name: 'Musique' });
     await nav.click();
     if (!page.url().includes('#playlist')) findings.push({ size: size.id, kind: 'navigation-failed' });
@@ -173,6 +204,7 @@ try {
     if (!page.url().includes('#account')) findings.push({size:size.id,kind:'account-failed'});
     if (await page.getByRole('button', { name:/Mode nuit|Affichage/i }).count())
       findings.push({size:size.id,kind:'night-option-still-visible'});
+    await page.getByRole('navigation',{name:'Réglages du compte'}).waitFor({state:'visible',timeout:8000});
     const accountTabs=page.getByRole('navigation',{name:'Réglages du compte'}).getByRole('button');
     if (await accountTabs.count()!==4) findings.push({size:size.id,kind:'account-tabs-invalid'});
     const tabRects = await page.locator('.account-settings-tab').evaluateAll(items =>
@@ -237,7 +269,7 @@ try {
   }
   await writeFile(OUTPUT + '/findings.json', JSON.stringify({ findings }, null, 2));
   console.log('VISUAL_FINDINGS ' + JSON.stringify(findings));
-  if (findings.some(x => ['console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
+  if (findings.some(x => ['v6-modebar-missing','v6-not-three-modes','v6-layers-open-at-rest','v6-verbose-inspector-still-shown','v6-details-open-at-rest', 'v6-settings-open-at-rest', 'v6-hidden-layers-visible', 'v6-hidden-controls-visible', 'console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
     process.exitCode = 1;
   }
 } finally {
