@@ -782,8 +782,8 @@ input[type="range"].ios-slider {
   color: #fff;
 }
 
-/* ---------- Ripple : thèmes jour / nuit ---------- */
-.theme-day {
+/* ---------- RIPPLECIRCLE : thème clair unique ---------- */
+.ripple-app {
   --ripple-ink: #1d1d1f;
   --ripple-muted: #515154;
   --ripple-body: #1d1d1f;
@@ -795,18 +795,6 @@ input[type="range"].ios-slider {
   color: #1d1d1f;
 }
 
-.theme-night {
-  --ripple-ink: #f5f5f7;
-  --ripple-muted: #b3b3ba;
-  --ripple-body: #e2e2e8;
-  --ripple-surface: #141418;
-  --ripple-soft: rgba(255, 255, 255, 0.08);
-  --account-field: #1c1c21;
-  --account-line: rgba(255, 255, 255, 0.14);
-  background: #0b0b0d;
-  color: #f5f5f7;
-  color-scheme: dark;
-}
 
 .ripple-header {
   background: rgba(255, 255, 255, 0.92);
@@ -814,21 +802,12 @@ input[type="range"].ios-slider {
   color: #1d1d1f;
 }
 
-.theme-night .ripple-header {
-  background: rgba(11, 11, 13, 0.92);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #f5f5f7;
-}
 
 .ripple-icon-button {
   background: rgba(0, 0, 0, 0.05);
   color: #1d1d1f;
 }
 
-.theme-night .ripple-icon-button {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f5f5f7;
-}
 
 /* Semantic surface classes — themable without !important */
 .ripple-card {
@@ -838,21 +817,12 @@ input[type="range"].ios-slider {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.theme-night .ripple-card {
-  background: #141418;
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #f5f5f7;
-}
 
 .ripple-pill {
   background: rgba(0, 0, 0, 0.06);
   color: #1d1d1f;
 }
 
-.theme-night .ripple-pill {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f5f5f7;
-}
 
 /* Demo badge */
 .ripple-demo-badge {
@@ -861,11 +831,6 @@ input[type="range"].ios-slider {
   border: 1px solid rgba(10, 132, 255, 0.25);
 }
 
-.theme-night .ripple-demo-badge {
-  background: rgba(10, 132, 255, 0.18);
-  color: #64D2FF;
-  border-color: rgba(10, 132, 255, 0.35);
-}
 
 .account-field {
   width: 100%;
@@ -892,39 +857,6 @@ input[type="range"].ios-slider {
   margin-bottom: 0.25rem;
 }
 
-/* Surfaces codées en dur repassées en nuit */
-.theme-night .bg-white {
-  background-color: #17171b !important;
-}
-
-.theme-night [class*="bg-[#fcfcfd]"] {
-  background-color: #141418 !important;
-}
-
-.theme-night [class*="bg-[#f5f5f7]"] {
-  background-color: #1b1b1f !important;
-}
-
-.theme-night [class*="border-black"] {
-  border-color: rgba(255, 255, 255, 0.14) !important;
-}
-
-.theme-night [class*="text-black"] {
-  color: #f5f5f7 !important;
-}
-
-.theme-night [class*="text-[#1d1d1f]"] {
-  color: #f5f5f7 !important;
-}
-
-.theme-night [class*="text-[#424245]"] {
-  color: #c9c9cf !important;
-}
-
-.theme-night [class*="text-[#6e6e73]"],
-.theme-night [class*="text-[#515154]"] {
-  color: #b3b3ba !important;
-}
 
 /* ---------- Ripple : retournement Face A / Face B ---------- */
 @keyframes rippleFlipOut {
