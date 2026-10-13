@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { CalendarCheck, Moon, Plus, Sun, Trash2, UserRound } from 'lucide-react';
-import { AccountState, JourneyKind, MealChoice } from '../../data/account';
+import { CalendarCheck, Database, Download, Plus, RotateCcw, ShieldCheck, Trash2, UserRound } from 'lucide-react';
+import { AccountState, JourneyKind, MealChoice, freshDemoAccount } from '../../data/account';
 import { INTERESTS, SECTOR_LABEL, Sector } from '../../data/networking';
 import { sfx } from '../../utils/audio';
 
@@ -23,42 +23,62 @@ interface AccountPageProps {
   onBackToRipple: () => void;
 }
 
-type AccountTab = 'profile' | 'rsvp' | 'journey' | 'display';
+type AccountTab = 'profile' | 'rsvp' | 'journey' | 'data';
 
 export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onToast, onBackToRipple }) => {
   const [tab, setTab] = useState<AccountTab>('profile');
   const [form, setForm] = useState({ date: '', title: '', detail: '', kind: 'personnel' as JourneyKind });
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  const exportAccount = () => {
+    const content = JSON.stringify({
+      product: 'RIPPLECIRCLE',
+      kind: 'local-account-export',
+      exportedAt: new Date().toISOString(),
+      account
+    }, null, 2);
+    const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'ripplecircle-mes-donnees.json';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    onToast('Export téléchargé sur cet appareil.');
+  };
 
   const update = <K extends keyof AccountState>(key: K, value: AccountState[K]) => onChange({ ...account, [key]: value });
   const tabs: { id: AccountTab; label: string; icon: React.ElementType }[] = [
     { id: 'profile', label: 'Profil', icon: UserRound },
     { id: 'rsvp', label: 'RSVP', icon: CalendarCheck },
     { id: 'journey', label: 'Parcours', icon: Plus },
-    { id: 'display', label: 'Affichage', icon: Sun }
+    { id: 'data', label: 'Mes données', icon: Database }
   ];
 
   const sectionTitle = tab === 'profile' ? 'Profil & centres d’intérêt'
     : tab === 'rsvp' ? 'RSVP & accueil'
     : tab === 'journey' ? 'Parcours de vie'
-    : 'Affichage';
+    : 'Mes données';
 
   return (
     <main className="max-w-[1080px] mx-auto px-4 sm:px-6 pt-8 pb-16">
       <header className="flex flex-wrap items-end justify-between gap-5 border-b border-[var(--account-line,rgba(0,0,0,0.12))] pb-6">
         <div className="max-w-[650px]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: MUTED }}>Compte · données du Ripple</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: MUTED }}>Compte local · démonstration</p>
           <h1 className="mt-1 text-[clamp(27px,3.4vw,42px)] font-semibold tracking-tight" style={{ color: INK }}>
             Votre histoire, votre soirée.
           </h1>
           <p className="mt-2 text-[14px] leading-snug" style={{ color: BODY }}>
-            Profil, centres d’intérêt, parcours et RSVP : une modification ici se répercute dans le cercle.
+            Identité, réponses au mariage et parcours : tout se reflète dans le cadran. Les modifications restent enregistrées dans ce navigateur.
           </p>
         </div>
         <button
           type="button"
           onClick={onBackToRipple}
-          className="pressable h-9 px-4 rounded-full bg-[#1d1d1f] text-white text-[13px] font-semibold"
+          className="pressable h-9 px-4 rounded-[9px] bg-[#1d1d1f] text-white text-[13px] font-semibold"
         >
           Retour au Ripple
         </button>
@@ -76,8 +96,10 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
                 onClick={() => {
                   sfx.playNodeClick();
                   setTab(t.id);
+                  setConfirmReset(false);
                 }}
-                className="pressable shrink-0 flex items-center gap-2.5 px-3.5 py-3 rounded-[12px] text-left text-[13px] font-semibold"
+                aria-current={active ? 'page' : undefined}
+                className="pressable shrink-0 flex items-center gap-2.5 px-3.5 py-3 rounded-[9px] text-left text-[13px] font-semibold"
                 style={active ? { background: 'var(--account-field,#f2f2f7)', color: INK } : { color: MUTED }}
               >
                 <Icon className="w-4 h-4 shrink-0" /> {t.label}
@@ -99,11 +121,16 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
                 <input
                   ref={fileRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/webp"
                   className="sr-only"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
+                    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+                      onToast('Photo au format PNG, JPEG ou WebP uniquement.');
+                      e.target.value = '';
+                      return;
+                    }
                     if (file.size > 1_500_000) {
                       onToast('Choisissez une photo de moins de 1,5 Mo.');
                       e.target.value = '';
@@ -111,8 +138,12 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
                     }
                     const reader = new FileReader();
                     reader.onload = () => {
-                      if (typeof reader.result === 'string') update('avatarUrl', reader.result);
+                      if (typeof reader.result === 'string') {
+                        update('avatarUrl', reader.result);
+                        onToast('Photo mise à jour sur cet appareil.');
+                      }
                     };
+                    reader.onerror = () => onToast('Impossible de lire cette photo.');
                     reader.readAsDataURL(file);
                     e.target.value = '';
                   }}
@@ -120,7 +151,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
                 <div>
                   <p className="text-[15px] font-bold" style={{ color: INK }}>{account.first} {account.last}</p>
                   <p className="text-[13px]" style={{ color: MUTED }}>{account.job} · {account.company}</p>
-                  <p className="mt-1 text-[12px]" style={{ color: BODY }}>Cette photo suit l’aiguille du Ripple et identifie votre portée.</p>
+                  <p className="mt-1 text-[12px]" style={{ color: BODY }}>Photo de profil affichée dans le cadran ; elle n'est envoyée à aucun serveur par ce formulaire.</p>
                 </div>
               </div>
 
@@ -168,8 +199,8 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
               <label className="mt-6 flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" checked={account.contactVisible} onChange={(e) => update('contactVisible', e.target.checked)} className="mt-1 accent-[#1E7A39] w-4 h-4" />
                 <span>
-                  <span className="block text-[14px] font-bold" style={{ color: INK }}>Partager mes coordonnées aux autres convives</span>
-                  <span className="block text-[12px] mt-0.5" style={{ color: MUTED }}>Votre téléphone n’est affiché dans Ripple que si vous y consentez.</span>
+                  <span className="block text-[14px] font-bold" style={{ color: INK }}>Autoriser un partage futur de mes coordonnées</span>
+                  <span className="block text-[12px] mt-0.5" style={{ color: MUTED }}>Préférence enregistrée localement. Aucune coordonnée n’est transmise aux autres invités dans cette démonstration.</span>
                 </span>
               </label>
             </div>
@@ -177,7 +208,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
 
           {tab === 'rsvp' && (
             <div className="news-swap mt-5 max-w-[650px]">
-              <p className="text-[14px] leading-relaxed" style={{ color: BODY }}>Votre réponse enrichit la portée « Invités » et aide le traiteur à préparer le bon nombre de couverts.</p>
+              <p className="text-[14px] leading-relaxed" style={{ color: BODY }}>Renseignez votre présence et vos besoins. Ces choix apparaissent dans votre profil de démonstration et ne sont pas transmis au traiteur.</p>
               <fieldset className="mt-6">
                 <legend className="field-label">Serez-vous présent·e ?</legend>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -186,7 +217,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
                     ['no', 'Non, désolé·e'],
                     ['maybe', 'Je confirme bientôt']
                   ] as const).map(([id, label]) => (
-                    <button key={id} type="button" onClick={() => update('rsvp', id)} className="pressable px-4 py-2 rounded-full text-[13px] font-bold" style={account.rsvp === id ? { background: INK, color: '#fff' } : { color: BODY, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.14)' }}>{label}</button>
+                    <button key={id} type="button" aria-pressed={account.rsvp === id} onClick={() => update('rsvp', id)} className="pressable px-4 py-2 rounded-full text-[13px] font-bold" style={account.rsvp === id ? { background: INK, color: '#fff' } : { color: BODY, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.14)' }}>{label}</button>
                   ))}
                 </div>
               </fieldset>
@@ -195,13 +226,13 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
                   <label><span className="field-label">Nombre de convives</span><select className="account-field" value={account.partySize} onChange={(e) => update('partySize', Number(e.target.value))}>{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} {n === 1 ? 'personne' : 'personnes'}</option>)}</select></label>
                   <label><span className="field-label">Plat principal</span><select className="account-field" value={account.meal} onChange={(e) => update('meal', e.target.value as MealChoice)}><option value="poisson">Filet de bar</option><option value="volaille">Suprême de volaille</option><option value="vegetarien">Végétarien</option></select></label>
                   <label className="sm:col-span-2"><span className="field-label">Allergies ou régime</span><input className="account-field" value={account.allergy} onChange={(e) => update('allergy', e.target.value)} placeholder="Aucun" /></label>
-                  <label className="sm:col-span-2 flex gap-3 items-start"><input type="checkbox" checked={account.needsShuttle} onChange={(e) => update('needsShuttle', e.target.checked)} className="mt-1 w-4 h-4 accent-[#1E7A39]" /><span className="text-[14px] font-semibold" style={{ color: INK }}>Réserver une place dans la navette retour de 23:30</span></label>
+                  <label className="sm:col-span-2 flex gap-3 items-start"><input type="checkbox" checked={account.needsShuttle} onChange={(e) => update('needsShuttle', e.target.checked)} className="mt-1 w-4 h-4 accent-[#1E7A39]" /><span className="text-[14px] font-semibold" style={{ color: INK }}>J’aurai besoin d’une navette retour (souhait, non réservé)</span></label>
                   <label className="sm:col-span-2"><span className="field-label">Besoin d’accessibilité</span><input className="account-field" value={account.accessNeeds} onChange={(e) => update('accessNeeds', e.target.value)} placeholder="Mobilité, place accessible…" /></label>
                 </div>
               )}
               <div className="mt-6 rounded-[14px] p-4 bg-[#1E7A39]/[0.08] border border-[#1E7A39]/25">
-                <p className="text-[13px] font-bold text-[#1E7A39]">Votre RSVP est conservé sur cet appareil.</p>
-                <p className="text-[12px] mt-1" style={{ color: BODY }}>La synchronisation avec le traiteur nécessite la version connectée de la régie.</p>
+                <p className="text-[13px] font-bold text-[#1E7A39]">Réponse enregistrée dans ce navigateur.</p>
+                <p className="text-[12px] mt-1" style={{ color: BODY }}>Aucune réservation, notification ou synchronisation avec un prestataire n’est effectuée.</p>
               </div>
             </div>
           )}
@@ -229,6 +260,11 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
                   <button type="submit" className="pressable h-11 px-4 rounded-full bg-[#1d1d1f] text-white text-[13px] font-bold inline-flex items-center gap-1.5"><Plus className="w-4 h-4" /> Ajouter</button>
                 </div>
               </form>
+              {account.journey.length === 0 && (
+                <p className="mt-5 text-[13px]" style={{ color: MUTED }} role="status">
+                  Aucune étape ajoutée pour le moment.
+                </p>
+              )}
               <ul className="mt-5 divide-y divide-black/[0.08]">
                 {account.journey.map((m) => (
                   <li key={m.id} className="flex flex-wrap items-center gap-3 py-3">
@@ -239,7 +275,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
                     </span>
                     <label className="inline-flex items-center gap-1.5 text-[11px] font-semibold cursor-pointer" style={{ color: BODY }}>
                       <input type="checkbox" checked={m.shared} onChange={(e) => update('journey', account.journey.map((x) => x.id === m.id ? { ...x, shared: e.target.checked } : x))} className="accent-[#1E7A39]" />
-                      Partagé
+                      Visible sur mon cadran
                     </label>
                     <button type="button" aria-label={`Supprimer ${m.title}`} onClick={() => update('journey', account.journey.filter((x) => x.id !== m.id))} className="w-8 h-8 rounded-full flex items-center justify-center text-[#C7342B] hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
                   </li>
@@ -248,25 +284,78 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
             </div>
           )}
 
-          {tab === 'display' && (
-            <div className="news-swap mt-5">
-              <p className="text-[14px]" style={{ color: BODY }}>Mode d’éclairage de la régie. Vous pourrez aussi zoomer directement sur le Ripple.</p>
-              <div className="mt-5 grid sm:grid-cols-2 gap-3 max-w-[640px]">
-                {([
-                  { id: 'day' as const, label: 'Mode jour', detail: 'Fond clair, contraste net', icon: Sun },
-                  { id: 'night' as const, label: 'Mode nuit', detail: 'Fond sombre, lumière douce', icon: Moon }
-                ]).map((t) => {
-                  const active = account.theme === t.id;
-                  const Icon = t.icon;
-                  return (
-                    <button key={t.id} type="button" onClick={() => { sfx.playNodeClick(); update('theme', t.id); onToast(t.id === 'night' ? 'Mode nuit activé' : 'Mode jour activé'); }} className="pressable p-5 rounded-[16px] border-2 text-left" style={{ background: t.id === 'night' ? '#17171b' : '#fff', color: t.id === 'night' ? '#f5f5f7' : INK, borderColor: active ? '#0A84FF' : 'rgba(0,0,0,0.1)' }}>
-                      <Icon className="w-5 h-5" />
-                      <span className="block mt-3 text-[15px] font-bold">{t.label}</span>
-                      <span className="block mt-0.5 text-[12px] opacity-75">{t.detail}</span>
-                    </button>
-                  );
-                })}
+          {tab === 'data' && (
+            <div className="news-swap mt-5 max-w-[730px] space-y-5">
+              <div className="account-data-intro">
+                <ShieldCheck className="w-5 h-5 shrink-0" aria-hidden="true" />
+                <div>
+                  <h3 className="font-bold text-[15px]">Votre espace est local</h3>
+                  <p className="mt-1 text-[13px] leading-relaxed" style={{ color: BODY }}>
+                    Les modifications sont enregistrées dans le navigateur de cet appareil.
+                    Il ne s’agit pas d’un compte utilisateur connecté : aucun partage entre appareils,
+                    aucune transmission du RSVP et aucune notification aux prestataires.
+                  </p>
+                </div>
               </div>
+              <div className="account-data-grid">
+                <div className="account-data-card">
+                  <p className="field-label">Profil</p>
+                  <p className="font-bold text-[15px]">{account.first} {account.last}</p>
+                  <p className="text-[12px] mt-1" style={{ color: MUTED }}>
+                    Coordonnées, photo et {account.interests.length} centre(s) d’intérêt
+                  </p>
+                </div>
+                <div className="account-data-card">
+                  <p className="field-label">Mariage fictif</p>
+                  <p className="font-bold text-[15px]">{account.rsvp === 'yes' ? 'Présence confirmée' : account.rsvp === 'no' ? 'Absence déclarée' : 'Présence à confirmer'}</p>
+                  <p className="text-[12px] mt-1" style={{ color: MUTED }}>
+                    Réponse locale · {account.journey.length} étape(s) de parcours
+                  </p>
+                </div>
+              </div>
+              <div className="account-data-card">
+                <h3 className="text-[15px] font-bold">Exporter mes données</h3>
+                <p className="text-[13px] mt-1 leading-relaxed" style={{ color: BODY }}>
+                  Téléchargez un fichier JSON avec le profil, le RSVP et le parcours.
+                  Il peut contenir vos coordonnées et besoins particuliers : conservez-le dans un endroit sûr.
+                </p>
+                <button type="button" onClick={exportAccount}
+                  className="account-data-action mt-4 bg-[#1d1d1f] text-white">
+                  <Download className="w-4 h-4" /> Télécharger mes données
+                </button>
+              </div>
+              <div className="account-data-card">
+                <h3 className="text-[15px] font-bold">Rétablir le profil fictif</h3>
+                <p className="text-[13px] mt-1 leading-relaxed" style={{ color: BODY }}>
+                  Remplace uniquement les informations de ce compte par les valeurs de démonstration
+                  (profil, RSVP, parcours). N'efface ni la playlist ni les autres préférences locales.
+                  L’opération ne peut pas être annulée depuis l’application.
+                </p>
+                {!confirmReset ? (
+                  <button type="button" onClick={() => setConfirmReset(true)}
+                    className="account-data-action mt-4 account-data-outline">
+                    <RotateCcw className="w-4 h-4" /> Rétablir le profil de démonstration
+                  </button>
+                ) : (
+                  <div className="mt-4 account-reset-confirm" role="group" aria-label="Confirmer la réinitialisation du profil">
+                    <p className="text-[13px] font-bold">Confirmer le remplacement de vos saisies locales ?</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" className="account-data-action bg-[#C7342B] text-white"
+                        onClick={() => {
+                          onChange(freshDemoAccount());
+                          setConfirmReset(false);
+                          onToast('Profil de démonstration rétabli sur cet appareil.');
+                        }}>Oui, remplacer</button>
+                      <button type="button" className="account-data-action account-data-outline"
+                        onClick={() => setConfirmReset(false)}>Annuler</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p className="text-[12px] leading-relaxed" style={{ color: MUTED }}>
+                Les données sont stockées dans le navigateur : vider les données du site les supprime.
+                Pour un usage professionnel ou multi-utilisateur, une authentification et un stockage sécurisé côté serveur seront nécessaires.
+              </p>
             </div>
           )}
         </section>
