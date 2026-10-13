@@ -1,18 +1,21 @@
 /**
- * ClockHUD — HTML/CSS overlay (Tailwind) for the 3D clock.
+ * ClockHUD — minimal, fading chrome over the jewel.
  *
- * Minimal, scientific, monochrome, in the spirit of the reference:
- *  - Top view preset bar (3/4, front, side, top, exploded)
- *  - Left signature selector (Instrument / Connection / Consequence)
- *  - Right contextual inspector for the selected entity
- *  - Bottom control dock (play/pause, explode slider, zoom +/-, reset)
- *  - Left/right annotation panels (Orchestration, Relations, Calendar, etc.)
- *  - Status line below the top bar
- *  - Paradigm card & detail-module card in corners
+ * Design principle: the 3D object IS the interface. Chrome appears on
+ * hover/movement and fades away after idle so the user can contemplate
+ * the instrument like an object on display.
  *
- * Uses the existing Tailwind theme and INK palette rather than the
- * inline <style> from the reference prototype (so visual language
- * stays consistent with the rest of the app).
+ * Visible when chromeVisible:
+ *   - Top-left: small brand mark + "R · 2D" escape hatch back to 2D.
+ *   - Top-right: four state pills (OBSERVED/PREDICTED/PROPOSED/CONFIRMED).
+ *   - Center-top: compact view preset bar + back/front flip indicator.
+ *   - Right: contextual inspector for the selected node (collapses to a dot
+ *     when idle, expands on selection).
+ *   - Bottom: single dock (play, explode, zoom, reset, flip).
+ *   - Bottom-hint: subtle "double-cliquer pour retourner" hint that fades first.
+ *
+ * All panels use pointer-events-auto only in their own bounds; large empty
+ * zones pass clicks through to the canvas (orbit / flip).
  */
 import type { ClockStateApi } from '../../hooks/clock/useClockState';
 import type { ClockState } from './lib/materials';
@@ -24,141 +27,55 @@ interface Props {
 }
 
 const VIEWS: { id: ClockStateApi['view']; label: string }[] = [
-  { id: '3/4', label: '◈ 3/4 VIEW' },
-  { id: 'front', label: 'FRONT' },
-  { id: 'side', label: 'SIDE PROFILE' },
-  { id: 'top', label: 'TOP' },
-  { id: 'exploded', label: 'EXPLODED' }
+  { id: '3/4', label: '◈ 3/4' },
+  { id: 'front', label: 'FACE' },
+  { id: 'side', label: 'PROFIL' },
+  { id: 'top', label: 'DESSUS' },
+  { id: 'exploded', label: 'ÉCLATÉ' }
 ];
 
 const STATES: ClockState[] = ['OBSERVED', 'PREDICTED', 'PROPOSED', 'CONFIRMED'];
 
-const MODES: { id: ClockStateApi['mode']; tag: string; label: string }[] = [
-  { id: 'instrument', tag: 'SIGNATURE A', label: 'The Instrument' },
-  { id: 'connection', tag: 'SIGNATURE B', label: 'The Connection' },
-  { id: 'consequence', tag: 'SIGNATURE C', label: 'The Consequence →' }
-];
-
-const STATUS_LABEL: Record<ClockStateApi['mode'], string> = {
-  instrument: '● INSTRUMENT CALIBRÉ — 7 ANNEAUX INDÉPENDANTS — CLIQUER UN NŒUD POUR SÉLECTIONNER',
-  connection: '⬢ CONNECTION — COUPLAGES MAGNÉTIQUES ACTIFS',
-  consequence: '◎ CONSEQUENCE — PROPAGATION CAUSALE EN COURS'
-};
-
 export function ClockHUD({ clock }: Props) {
   const info = getEntityInfo(clock.selectedId);
+  const visible = clock.chromeVisible;
+  const opacity = visible ? 1 : 0;
+  const pointer = visible ? 'auto' : 'none';
+  const transition = 'opacity 420ms cubic-bezier(0.22, 1, 0.36, 1)';
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 text-[color:var(--ink,#111)]" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-      {/* Frame border with Solstice labels */}
-      <div className="pointer-events-none absolute inset-[14px] border border-[#bdb9ac]">
-        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-[#f3f1ea] px-2 text-[8px] tracking-[0.24em] text-[#666]">✣ SOLSTICE D&apos;HIVER ∇</span>
-        <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-[#f3f1ea] px-2 text-[8px] tracking-[0.24em] text-[#666]">▲ SOLSTICE D&apos;ÉTÉ JUIL.</span>
-      </div>
-
-      {/* View preset bar */}
-      <div className="pointer-events-auto absolute left-1/2 top-6 z-20 flex -translate-x-1/2 gap-1.5">
-        {VIEWS.map((v) => (
-          <button
-            key={v.id}
-            onClick={() => {
-              clock.setView(v.id);
-              if (v.id === 'exploded') clock.setExploded(1);
-            }}
-            className={`border border-black/80 px-3 py-2 text-[9px] font-bold tracking-[0.14em] backdrop-blur ${
-              clock.view === v.id ? 'bg-black text-white' : 'bg-white/80 hover:bg-white'
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Status line */}
-      <div className="absolute left-1/2 top-[72px] -translate-x-1/2 z-10 text-[8px] tracking-[0.22em] text-[#777]">
-        {STATUS_LABEL[clock.mode]}
-      </div>
-
-      {/* Left signature mode selector */}
-      <div className="pointer-events-auto absolute left-5 top-[78px] z-20 flex flex-col gap-1.5">
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            onClick={() => {
-              clock.setMode(m.id);
-              if (m.id === 'consequence') clock.triggerRipple();
-            }}
-            className={`min-w-[178px] border border-black/80 px-3 py-2 text-left backdrop-blur ${
-              clock.mode === m.id ? 'bg-black text-white' : 'bg-white/85 hover:bg-white'
-            }`}
-          >
-            <span className={`block text-[8px] tracking-[0.16em] ${clock.mode === m.id ? 'text-white/70' : 'text-[#777]'}`}>{m.tag}</span>
-            <span className="block font-serif text-[16px] leading-tight" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif' }}>{m.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Right inspector */}
-      <div className="pointer-events-auto absolute right-5 top-[78px] z-20 w-[252px] border border-black/80 bg-white/90 p-4 shadow-[8px_8px_0_rgba(0,0,0,0.08)] backdrop-blur-xl">
-        <label className="block text-[8px] tracking-[0.22em] text-[#777]">NOYAU IDENTITAIRE — SELECTED ENTITY</label>
-        <h2 className="mt-1.5 font-serif text-[24px] leading-none" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif' }}>{info.name}</h2>
-        <p className="mt-2 text-[11px] leading-relaxed text-[#555]">{info.description}</p>
-        <div className="mt-3 space-y-1.5 border-t border-black/10 pt-2">
-          <Row label="ENTITY ID" value={clock.selectedId} />
-          <Row label="RING / TYPE" value={`${info.ringId} · ${info.ringName}`} />
-          <Row label="STATE" value={clock.state} />
-          <Row label="CONNECTIONS" value={`${info.connectionCount} LINKS`} />
-        </div>
-        <button
-          onClick={clock.triggerRipple}
-          className="mt-3 w-full bg-black py-2.5 text-[10px] font-bold tracking-[0.14em] text-white hover:bg-black/85"
+    <div
+      className="pointer-events-none absolute inset-0 z-10 select-none"
+      style={{ transition, opacity, color: '#111' } as React.CSSProperties}
+    >
+      {/* Top-left brand + 2D escape */}
+      <div className="pointer-events-auto absolute left-5 top-5 flex items-center gap-3">
+        <a
+          href="#"
+          onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}
+          className="flex items-center gap-2 border border-black/80 bg-white/80 px-2.5 py-1.5 text-[9px] font-bold tracking-[0.22em] backdrop-blur hover:bg-white"
         >
-          ⟡ PROPAGER UNE ONDE
-        </button>
+          <span className="h-1.5 w-1.5 rounded-full bg-black" /> R · 2D
+        </a>
+        <span className="hidden font-serif text-[15px] tracking-[0.12em] text-black/70 sm:inline" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif' }}>
+          RIPPLE CIRCLE
+        </span>
       </div>
 
-      {/* Bottom dock */}
-      <div className="pointer-events-auto absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap border border-black/80 bg-white/90 p-2 shadow-[0_12px_35px_rgba(0,0,0,0.14)] backdrop-blur-xl">
-        <button
-          onClick={() => clock.setPlaying((p) => !p)}
-          className={`border border-black/80 px-3 py-1.5 text-[9px] font-bold tracking-[0.14em] ${clock.playing ? 'bg-black text-white' : 'bg-white'}`}
-        >
-          {clock.playing ? '❚❚ PAUSE' : '▶ PLAY'}
-        </button>
-        <label className="px-1 text-[8px] font-bold tracking-[0.18em]">EXPLODED</label>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={Math.round(clock.exploded * 100)}
-          onChange={(e) => clock.setExploded(Number(e.target.value) / 100)}
-          className="w-[110px] accent-black"
-        />
-        <label className="px-1 text-[8px] font-bold tracking-[0.18em]">ZOOM</label>
-        <div className="flex">
-          <button onClick={() => clock.zoomBy(1.1)} className="w-8 border border-black/80 py-1.5 text-[14px] font-bold hover:bg-black/5">−</button>
-          <button onClick={() => clock.zoomBy(0.9)} className="w-8 border border-black/80 py-1.5 text-[14px] font-bold hover:bg-black/5">+</button>
-        </div>
-        <button
-          onClick={() => { clock.reset(); clock.setSelectedId('CORE-001'); }}
-          className="border border-black/80 px-3 py-1.5 text-[9px] font-bold tracking-[0.14em] hover:bg-black/5"
-        >
-          ↺ RESET VIEW
-        </button>
-      </div>
-
-      {/* State pills (top right) */}
-      <div className="pointer-events-auto absolute right-6 top-6 z-20 flex flex-col items-end gap-2">
-        <div className="text-right text-[9px] font-bold tracking-[0.24em]">∇ SOLSTICE D&apos;HIVER · DÉC. · JANV.</div>
-        <div className="flex gap-1.5">
+      {/* Top-right state pills */}
+      <div
+        className="pointer-events-auto absolute right-5 top-5 flex flex-col items-end gap-1.5"
+        style={{ pointerEvents: pointer }}
+      >
+        <div className="flex gap-1">
           {STATES.map((s) => (
             <button
               key={s}
               onClick={() => clock.setState(s)}
-              className={`flex items-center gap-1.5 border border-black/80 px-2.5 py-1.5 text-[8px] font-bold tracking-[0.16em] ${clock.state === s ? 'bg-black text-white' : 'bg-white/80'}`}
+              className={`flex items-center gap-1 border border-black/80 px-2 py-1 text-[7.5px] font-bold tracking-[0.2em] backdrop-blur ${clock.state === s ? 'bg-black text-white' : 'bg-white/75'}`}
             >
               <span
-                className="h-[7px] w-[7px] rounded-full border border-black/80"
+                className="h-[5px] w-[5px] rounded-full border border-black/80"
                 style={{ background: clock.state === s ? '#fff' : `#${STATE_META[s].dot.toString(16).padStart(6, '0')}` }}
               />
               {s}
@@ -167,68 +84,108 @@ export function ClockHUD({ clock }: Props) {
         </div>
       </div>
 
-      {/* Left annotation panel */}
-      <aside className="pointer-events-none absolute left-5 top-[280px] z-10 hidden w-[210px] space-y-7 lg:block">
-        <Annotation title="Orchestration adaptative" body="Ajuste en temps réel les ressources, les priorités et les rythmes." side="left" tag="NOV." />
-        <Annotation title="Couronne des relations" body="Représente les personnes, les équipes et leurs proximités. Couplages magnétiques dynamiques." side="left" />
-        <Annotation title="Mémoire active" body="Stocke, relie et réactive les événements, apprentissages et signaux faibles." side="left" />
-      </aside>
-
-      {/* Right annotation panel */}
-      <aside className="pointer-events-none absolute right-5 top-[280px] z-10 hidden w-[210px] space-y-7 lg:block">
-        <Annotation title="Anneau calendaire" body="Repère les cycles annuels, saisonniers et hebdomadaires. Indexation de haute précision." side="right" />
-        <Annotation title="Mécanisme de propagation" body="Chaque changement génère une onde qui se propage à travers tout le système." side="right" tag="FÉVR. · MARS" />
-        <Annotation title="Noyau identitaire" body="Identité · Intentions · Équilibre · Alignement" side="right" tag="AVR. · MAI · JUIL." />
-      </aside>
-
-      {/* Paradigm card (bottom-left) */}
-      <div className="pointer-events-none absolute bottom-[90px] left-5 z-10 hidden w-[250px] border-[1.5px] border-black/80 bg-white/85 p-3 backdrop-blur lg:block">
-        <h4 className="text-[12px] font-bold">Changement de paradigme</h4>
-        <ul className="mt-2 space-y-1.5">
-          {[
-            "Du tableau de bord à l'instrument vivant.",
-            'Le temps, les personnes et les actions partagent une seule mécanique.',
-            'Chaque changement se propage comme une onde pilotable.'
-          ].map((t, i) => (
-            <li key={i} className="flex gap-2 text-[10px] leading-snug text-[#444]">
-              <span className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border border-black/80 text-[9px] not-italic">{i + 1}</span>
-              {t}
-            </li>
-          ))}
-        </ul>
+      {/* View preset bar — centered top */}
+      <div
+        className="pointer-events-auto absolute left-1/2 top-5 flex -translate-x-1/2 gap-1"
+        style={{ pointerEvents: pointer }}
+      >
+        {VIEWS.map((v) => (
+          <button
+            key={v.id}
+            onClick={() => { clock.setView(v.id); if (v.id === 'exploded') clock.setExploded(1); else if (v.id === '3/4') clock.setExploded(0); }}
+            className={`border border-black/80 px-2.5 py-1 text-[8px] font-bold tracking-[0.2em] backdrop-blur ${clock.view === v.id ? 'bg-black text-white' : 'bg-white/75 hover:bg-white'}`}
+          >
+            {v.label}
+          </button>
+        ))}
+        <button
+          onClick={clock.toggleFlip}
+          className={`border border-black/80 px-2.5 py-1 text-[8px] font-bold tracking-[0.2em] backdrop-blur ${clock.flipped ? 'bg-black text-white' : 'bg-white/75 hover:bg-white'}`}
+        >
+          {clock.flipped ? '↺ FACE' : '⚙ DOS'}
+        </button>
       </div>
 
-      {/* Module detail card (bottom-right) */}
-      <div className="pointer-events-none absolute bottom-[90px] right-5 z-10 hidden w-[220px] border border-black/40 bg-white/80 p-3 backdrop-blur lg:block">
-        <h5 className="text-[8px] tracking-[0.2em] text-[#777]">DÉTAIL D&apos;UN MODULE</h5>
-        <div className="my-2 text-center text-[28px] leading-none">◎<br />⬢<br />⬣</div>
-        <p className="text-right text-[9px] leading-[1.8] text-[#555]">
-          Couvercle saphir —<br />Rotor magnétique —<br />Bague de guidage —<br />Ressort de tension —<br />Corps principal —
-        </p>
+      {/* Right inspector — compact, paper card */}
+      {!clock.flipped && (
+        <div
+          className="pointer-events-auto absolute right-5 top-20 w-[220px] border border-black/80 bg-white/85 p-3 shadow-[4px_4px_0_rgba(0,0,0,0.08)] backdrop-blur-xl"
+          style={{ pointerEvents: pointer }}
+        >
+          <div className="text-[7px] tracking-[0.28em] text-[#777]">SÉLECTION</div>
+          <div className="mt-1 font-serif text-[18px] leading-tight" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif' }}>{info.name}</div>
+          <div className="mt-1 text-[9.5px] leading-snug text-[#555]">{info.description}</div>
+          <div className="mt-2 space-y-0.5 border-t border-black/10 pt-1.5 font-mono text-[8px] tracking-[0.05em]">
+            <Row k="ID" v={clock.selectedId} />
+            <Row k="TYPE" v={`${info.ringId}·${info.ringName}`} />
+            <Row k="STATE" v={clock.state} />
+            <Row k="LIENS" v={`${info.connectionCount}`} />
+          </div>
+          <button
+            onClick={clock.triggerRipple}
+            className="mt-2 w-full bg-black py-1.5 text-[8px] font-bold tracking-[0.2em] text-white hover:bg-black/85"
+          >
+            ⟡ PROPAGER UNE ONDE
+          </button>
+        </div>
+      )}
+
+      {/* Bottom dock — single elegant control bar */}
+      <div
+        className="pointer-events-auto absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap border border-black/80 bg-white/85 p-1.5 shadow-[0_8px_28px_rgba(0,0,0,0.12)] backdrop-blur-xl"
+        style={{ pointerEvents: pointer }}
+      >
+        <button
+          onClick={() => clock.setPlaying((p) => !p)}
+          className={`border border-black/80 px-2 py-1 text-[8px] font-bold tracking-[0.2em] ${clock.playing ? 'bg-black text-white' : 'bg-white'}`}
+        >
+          {clock.playing ? '❚❚' : '▶'}
+        </button>
+        <label className="px-1 text-[7.5px] font-bold tracking-[0.24em]">ÉCLATÉ</label>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={Math.round(clock.exploded * 100)}
+          onChange={(e) => clock.setExploded(Number(e.target.value) / 100)}
+          className="w-[88px] accent-black"
+        />
+        <label className="px-1 text-[7.5px] font-bold tracking-[0.24em]">ZOOM</label>
+        <div className="flex">
+          <button onClick={() => clock.zoomBy(1.1)} className="w-6 border border-black/80 py-0.5 text-[12px] font-bold hover:bg-black/5">−</button>
+          <button onClick={() => clock.zoomBy(0.9)} className="w-6 border border-black/80 py-0.5 text-[12px] font-bold hover:bg-black/5">+</button>
+        </div>
+        <button
+          onClick={clock.reset}
+          className="border border-black/80 px-2 py-1 text-[8px] font-bold tracking-[0.2em] hover:bg-black/5"
+        >
+          ↺
+        </button>
+        <button
+          onClick={clock.toggleFlip}
+          className="border border-black/80 px-2 py-1 text-[8px] font-bold tracking-[0.2em] hover:bg-black/5"
+          title="Retourner le bijou (F)"
+        >
+          ⇅ DOS
+        </button>
+      </div>
+
+      {/* Subtle bottom hint — fades fast */}
+      <div
+        className="pointer-events-none absolute bottom-[52px] left-1/2 -translate-x-1/2 text-[8px] tracking-[0.3em] text-[#888]"
+        style={{ opacity: visible ? 0.7 : 0, transition: 'opacity 600ms ease 400ms' }}
+      >
+        {clock.flipped ? 'CLIQUER LA COURONNE F/R POUR REVENIR À LA FACE' : 'DOUBLE-CLIQUER LE VIDE · F POUR RETOURNER LE BIJOU'}
       </div>
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex justify-between border-t border-black/10 py-1.5 text-[9px] tracking-[0.08em] first:border-t-0 first:pt-0">
-      <span className="text-[#666]">{label}</span>
-      <b className="font-mono font-bold">{value}</b>
-    </div>
-  );
-}
-
-function Annotation({ title, body, side, tag }: { title: string; body: string; side: 'left' | 'right'; tag?: string }) {
-  return (
-    <div className="relative">
-      <h3 className="border-b-[1.5px] border-black/80 pb-1.5 text-[11px] font-bold">{title}</h3>
-      <p className="mt-2 text-[11px] leading-relaxed text-[#4c4b46]">{body}</p>
-      {tag && <p className="mt-3 text-[10px] font-bold tracking-[0.15em]">{tag}</p>}
-      {/* Annotation line extending toward the clock */}
-      <span
-        className={`absolute top-[14px] h-px w-[52px] bg-black/80 ${side === 'left' ? '-right-[58px] origin-left -rotate-[18deg]' : '-left-[58px] origin-right rotate-[18deg]'}`}
-      />
+    <div className="flex justify-between">
+      <span className="text-[#777]">{k}</span>
+      <b className="font-bold">{v}</b>
     </div>
   );
 }

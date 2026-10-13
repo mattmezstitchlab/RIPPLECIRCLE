@@ -37,7 +37,12 @@ export function useClockState() {
   const [mode, setMode] = useState<ClockMode>('instrument');
   const [selectedId, setSelectedId] = useState<string>('CORE-001');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [rippleKey, setRippleKey] = useState(0); // increment to fire a ripple wave
+  const [rippleKey, setRippleKey] = useState(0);
+  /** true when the jewel is flipped to its mechanical back (reglage side). */
+  const [flipped, setFlipped] = useState(false);
+  /** Whether the chrome (dock, inspector, annotations) is visible. Auto-hides
+   *  after a short idle so the jewel can be contemplated in the round. */
+  const [chromeVisible, setChromeVisible] = useState(true);
 
   const triggerRipple = useCallback(() => {
     setRippleKey((k) => k + 1);
@@ -48,13 +53,16 @@ export function useClockState() {
     setExploded(0);
     setView('3/4');
     setMode('instrument');
+    setFlipped(false);
   }, []);
 
   const zoomBy = useCallback((factor: number) => {
-    // Camera zoom is handled via OrbitControls dolly; this is a hook stub
-    // used by the zoom buttons that dispatch a custom event consumed by
-    // the camera controller.
     window.dispatchEvent(new CustomEvent('clock:zoom', { detail: { factor } }));
+  }, []);
+
+  const toggleFlip = useCallback(() => {
+    setFlipped((f) => !f);
+    setChromeVisible(true);
   }, []);
 
   return useMemo(
@@ -67,9 +75,12 @@ export function useClockState() {
       selectedId, setSelectedId,
       hoveredId, setHoveredId,
       rippleKey, triggerRipple,
+      flipped, setFlipped, toggleFlip,
+      chromeVisible, setChromeVisible,
       reset, zoomBy
     }),
-    [view, exploded, playing, state, mode, selectedId, hoveredId, rippleKey, triggerRipple, reset, zoomBy]
+    [view, exploded, playing, state, mode, selectedId, hoveredId, rippleKey,
+     triggerRipple, flipped, toggleFlip, chromeVisible, reset, zoomBy]
   );
 }
 
