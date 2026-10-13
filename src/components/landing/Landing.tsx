@@ -82,12 +82,6 @@ export const Landing: React.FC = () => {
           </span>
 
           <nav aria-label="Couches du cercle" className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full">
-            <a
-              href="/clock3d/index.html"
-              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-black/15 bg-black px-3 text-[12px] font-bold text-white hover:bg-black/85"
-            >
-              ⟡ 3D
-            </a>
             {NAV.map((item) => {
               const on = layer === item.id;
               const Icon = item.icon;
@@ -96,6 +90,7 @@ export const Landing: React.FC = () => {
                   key={item.id}
                   type="button"
                   aria-current={on ? 'page' : undefined}
+                  aria-label={item.label}
                   onClick={() => {
                     if (on) return;
                     sfx.playNodeClick();
