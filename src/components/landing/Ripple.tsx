@@ -1313,7 +1313,9 @@ export const Ripple: React.FC<RippleProps> = ({
 
         </div>
           </div>
-        <div className="ripple-watch-controls" role="toolbar" aria-label="Commandes du cadran">
+        <details className="ripple-v6-watch-settings">
+          <summary>Réglages du cercle</summary>
+          <div className="ripple-watch-controls" role="toolbar" aria-label="Commandes du cadran">
           <button type="button" className="ripple-circle-control" aria-pressed={relationsVisible} aria-label={relationsVisible ? 'Masquer les relations' : 'Afficher les relations'} title="Connexions" onClick={() => setRelationsVisible(v => !v)}>
             <Network className="w-4 h-4" />
           </button>
@@ -1326,7 +1328,8 @@ export const Ripple: React.FC<RippleProps> = ({
           <button type="button" className="ripple-circle-control" onClick={() => setAudioMuted(m => !m)} aria-label={audioMuted ? 'Activer les effets sonores' : 'Couper les effets sonores'} title="Effets sonores">
             {audioMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
-        </div>
+          </div>
+        </details>
         </div>
 
         {/* Une seule colonne : le contexte visible et les outils avancés repliés. */}

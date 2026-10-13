@@ -99,6 +99,12 @@ try {
       findings.push({size:size.id,kind:'v6-verbose-inspector-still-shown'});
     if (await page.locator('.ripple-v6-context-details[open]').count())
       findings.push({size:size.id,kind:'v6-details-open-at-rest'});
+    if (await page.locator('.ripple-v6-watch-settings[open]').count())
+      findings.push({size:size.id,kind:'v6-settings-open-at-rest'});
+    await page.locator('.ripple-v6-watch-settings > summary').click();
+    await page.getByRole('button',{name:'Zoomer'}).click();
+    await page.getByRole('button',{name:'Recentrer le cadran'}).click();
+    await page.locator('.ripple-v6-watch-settings > summary').click();
     await topbar.getByRole('button',{name:'Et si ?'}).click();
     await page.locator('.ripple-demo-explorer').waitFor();
     if (!await page.getByText('00:10',{exact:true}).count())
@@ -258,7 +264,7 @@ try {
   }
   await writeFile(OUTPUT + '/findings.json', JSON.stringify({ findings }, null, 2));
   console.log('VISUAL_FINDINGS ' + JSON.stringify(findings));
-  if (findings.some(x => ['v6-modebar-missing','v6-not-three-modes','v6-layers-open-at-rest','v6-verbose-inspector-still-shown','v6-details-open-at-rest', 'console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
+  if (findings.some(x => ['v6-modebar-missing','v6-not-three-modes','v6-layers-open-at-rest','v6-verbose-inspector-still-shown','v6-details-open-at-rest', 'v6-settings-open-at-rest', 'console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
     process.exitCode = 1;
   }
 } finally {

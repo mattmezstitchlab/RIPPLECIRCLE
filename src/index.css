@@ -1479,3 +1479,21 @@ input[type="range"].ios-slider {
   .ripple-v6-summary {padding:1px 12px 11px;gap:8px;}
   .ripple-v6-kpis strong {font-size:12px;}
 }
+
+
+/* V6 final : masquer les réglages secondaires tant qu'ils ne sont pas demandés. */
+.ripple-v6-watch-settings {
+  position:relative;z-index:3;display:block;text-align:center;
+  min-height:30px;width:100%;margin-top:0;
+}
+.ripple-v6-watch-settings > summary {
+  list-style:none;display:inline-flex;gap:7px;justify-content:center;align-items:center;
+  padding:7px 12px;min-height:29px;border-radius:7px;cursor:pointer;
+  font-size:10px;font-weight:750;color:var(--ripple-muted,#515154);
+}
+.ripple-v6-watch-settings > summary::-webkit-details-marker {display:none;}
+.ripple-v6-watch-settings > summary:focus-visible {
+  outline:2px solid #0A84FF;outline-offset:2px;
+}
+.ripple-v6-watch-settings[open] > summary {background:var(--ripple-soft,rgba(0,0,0,.04));}
+.ripple-v6-watch-settings .ripple-watch-controls {padding:5px 0 4px;margin:0;}
