@@ -88,6 +88,47 @@ try {
     if (result.headerAccountCount !== 1) findings.push({ size: size.id, kind: 'header-controls', count: result.headerAccountCount });
     if (size.width >= 1280 && result.dial && result.inspector && result.dial.right > result.inspector.x + 1) findings.push({ size: size.id, kind: 'dial-inspector-overlap' });
 
+    // V7 — one framing button cycles full → half → selected quarter → full.
+    const framingButton = page.locator('.ripple-v7-frame-btn');
+    const fixedDock = page.locator('.ripple-v7-dock');
+    if(await framingButton.count() !== 1) findings.push({size:size.id,kind:'v7-frame-button-missing'});
+    const dockPos = await fixedDock.evaluate(el => ({
+      position:getComputedStyle(el).position,
+      bottom:el.getBoundingClientRect().bottom,
+      y:el.getBoundingClientRect().y
+    }));
+    if(dockPos.position !== 'fixed' || dockPos.bottom > size.height + 1)
+      findings.push({size:size.id,kind:'v7-bottom-dock-not-fixed'});
+    const fullDial = await page.locator('[role="application"]').boundingBox();
+    if(fullDial && dockPos.y < fullDial.y + fullDial.height - 4)
+      findings.push({size:size.id,kind:'v7-dock-overlaps-full-circle'});
+    if (await page.locator('.ripple-watch-wrap').getAttribute('data-framing') !== 'full')
+      findings.push({size:size.id,kind:'v7-wrong-default-frame'});
+    await framingButton.click();
+    const halfWindow=page.locator('.ripple-watch-wrap[data-framing="half"]');
+    await halfWindow.waitFor();
+    const halfWindowBox=await halfWindow.boundingBox();
+    if(!halfWindowBox || Math.abs(halfWindowBox.width / 2 - halfWindowBox.height) > 4)
+      findings.push({size:size.id,kind:'v7-half-missing-crop',rect:halfWindowBox});
+    if (['desktop-1600','mobile-390'].includes(size.id))
+      await page.screenshot({path:OUTPUT+'/'+size.id+'-v7-half.png',fullPage:true,animations:'disabled',timeout:15000});
+    await framingButton.click();
+    const quarter=page.locator('.ripple-watch-wrap[data-framing="quarter"]');
+    await quarter.waitFor();
+    const viewBox=await page.locator('.ripple-watch-wrap svg').getAttribute('viewBox');
+    if(!viewBox || Math.abs(Number(viewBox.trim().split(/\s+/)[2]) - 530)>1)
+      findings.push({size:size.id,kind:'v7-quarter-zoom-invalid',viewBox});
+    if (['desktop-1600','mobile-390'].includes(size.id))
+      await page.screenshot({path:OUTPUT+'/'+size.id+'-v7-quarter.png',fullPage:true,animations:'disabled',timeout:15000});
+    await framingButton.click();
+    if (await page.locator('.ripple-watch-wrap').getAttribute('data-framing') !== 'full')
+      findings.push({size:size.id,kind:'v7-cycle-not-reversible'});
+    await page.locator('[role="application"]').dblclick({position:{x:65,y:65}});
+    if (await page.locator('.ripple-watch-wrap').getAttribute('data-framing') !== 'half')
+      findings.push({size:size.id,kind:'v7-doubleclick-framing-failed'});
+    await framingButton.click();
+    await page.getByRole('button',{name:'Recentrer le cadran'}).count(); // present in disclosure, not visible until opened
+    await framingButton.click();
     // V6 — THREE primary modes and no seven-button strip at rest.
     const topbar = page.locator('.ripple-v6-topbar');
     if (await topbar.count() !== 1) findings.push({size:size.id,kind:'v6-modebar-missing'});
@@ -269,7 +310,7 @@ try {
   }
   await writeFile(OUTPUT + '/findings.json', JSON.stringify({ findings }, null, 2));
   console.log('VISUAL_FINDINGS ' + JSON.stringify(findings));
-  if (findings.some(x => ['v6-modebar-missing','v6-not-three-modes','v6-layers-open-at-rest','v6-verbose-inspector-still-shown','v6-details-open-at-rest', 'v6-settings-open-at-rest', 'v6-hidden-layers-visible', 'v6-hidden-controls-visible', 'console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
+  if (findings.some(x => ['v7-frame-button-missing','v7-bottom-dock-not-fixed','v7-dock-overlaps-full-circle','v7-wrong-default-frame','v7-half-missing-crop','v7-quarter-zoom-invalid','v7-cycle-not-reversible','v7-doubleclick-framing-failed','v6-modebar-missing','v6-not-three-modes','v6-layers-open-at-rest','v6-verbose-inspector-still-shown','v6-details-open-at-rest', 'v6-settings-open-at-rest', 'v6-hidden-layers-visible', 'v6-hidden-controls-visible', 'console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
     process.exitCode = 1;
   }
 } finally {
