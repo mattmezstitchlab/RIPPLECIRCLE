@@ -104,6 +104,7 @@ let handsGroup = null;
 let spokesGroup = null;
 let outerTicks = null;
 let ringVisibility = RING_DEFS.map(()=>true);
+let dialFront = null, dialBack = null;
 let ringTargetZ = RING_DEFS.map(()=>0); // explode offset
 let playing = true;
 let side = 'front';           // 'front' | 'back'
@@ -308,43 +309,52 @@ function initScene(){
 
   frontGroup = new THREE.Group();
   backGroup = new THREE.Group();
-  // Keep backGroup children at identity; we animate clockRoot.rotation.x for flip,
-  // and for the back we add an extra y-rotation so engraved text reads naturally.
-  backGroup.position.z = -0.10;
   clockRoot.add(frontGroup);
   clockRoot.add(backGroup);
 
   buildFront();
   buildBack();
+  // 3/4 product-shot camera looking down at a flat pocket-watch on blueprint.
+  camera.position.set(0.4, 9.6, 11.6);
+  controls.target.set(0, 0.4, 0);
+  controls.minPolarAngle = Math.PI*0.05;
+  controls.maxPolarAngle = Math.PI*0.55;
+  controls.minAzimuthAngle = -Math.PI*1.0;
+  controls.maxAzimuthAngle =  Math.PI*1.0;
+  controls.update();
 }
 
 // ---------- build front (the dial) ----------
 function buildFront(){
-  // --- backing (cylinder)
+  // backing (cylinder): flat case Y-up, top face at y=0.
   const backOuter = new THREE.Mesh(new THREE.CylinderGeometry(8.2,8.2,0.24,80,1), matBackingCyl);
   backOuter.position.y = -0.12;
   backOuter.receiveShadow = true; backOuter.castShadow = true;
   frontGroup.add(backOuter);
 
-  // paper disc on face
+  // dialFront: dial content authored in "face" XY space (+z up), rotated -90deg
+  // around X and lifted so it lies ON TOP of the backing cylinder.
+  dialFront = new THREE.Group();
+  dialFront.rotation.x = -Math.PI/2;
+  dialFront.position.y = 0.13;
+  frontGroup.add(dialFront);
+
+  // paper disc
   const face = new THREE.Mesh(new THREE.CircleGeometry(8.05,80), matPaper);
   face.position.z = 0.005;
-  face.rotation.x = 0;
   face.receiveShadow = true;
-  frontGroup.add(face);
+  dialFront.add(face);
 
-  // outer black bezel (torus)
+  // outer black bezel (torus defaults to XY — that is dialFront's local XY)
   const bezel = new THREE.Mesh(new THREE.TorusGeometry(8.16, 0.09, 12, 120), matBezel);
-  bezel.rotation.x = Math.PI/2;
   bezel.position.z = 0;
   bezel.castShadow = true;
-  frontGroup.add(bezel);
+  dialFront.add(bezel);
 
   // inner groove
   const groove = new THREE.Mesh(new THREE.TorusGeometry(7.96, 0.012, 8, 160), matGroove);
-  groove.rotation.x = Math.PI/2;
   groove.position.z = 0.01;
-  frontGroup.add(groove);
+  dialFront.add(groove);
 
   // 12 outer screws (instanced)
   const screwGeo = new THREE.CylinderGeometry(0.06,0.06,0.04,12);
@@ -359,7 +369,7 @@ function buildFront(){
     outerScrews.setMatrixAt(i, _m);
   }
   outerScrews.instanceMatrix.needsUpdate = true;
-  frontGroup.add(outerScrews);
+  dialFront.add(outerScrews);
 
   // outer ticks (240, 4 per minute slot) via instanced box
   outerTicks = new THREE.Group();
@@ -388,7 +398,7 @@ function buildFront(){
   outerTicksBig.instanceMatrix.needsUpdate = true;
   outerTicksMesh.instanceMatrix.needsUpdate = true;
   outerTicks.add(outerTicksMesh, outerTicksBig);
-  frontGroup.add(outerTicks);
+  dialFront.add(outerTicks);
 
   // 12 spokes from center to ~4.8r
   spokesGroup = new THREE.Group();
@@ -400,7 +410,7 @@ function buildFront(){
     s.rotation.z = a;
     spokesGroup.add(s);
   }
-  frontGroup.add(spokesGroup);
+  dialFront.add(spokesGroup);
 
   // --- the 7 rings ---
   const ringMaterials = [matLight, matTitanium, matSilver, matLight, matTitanium, matSilver, matLight];
@@ -425,10 +435,8 @@ function buildFront(){
 
     // black inner & outer rails (tori)
     const innerRail = new THREE.Mesh(new THREE.TorusGeometry(innerR, 0.012, 6, 80), matInk);
-    innerRail.rotation.x = Math.PI/2;
     g.add(innerRail);
     const outerRail = new THREE.Mesh(new THREE.TorusGeometry(outerR, 0.012, 6, 80), matInk);
-    outerRail.rotation.x = Math.PI/2;
     g.add(outerRail);
 
     // ticks per ring: more ticks on outer rings
@@ -487,30 +495,23 @@ function buildFront(){
     ringLabel.position.set(0, -(def.radius+0.48), 0.04);
     g.add(ringLabel);
 
-    frontGroup.add(g);
+    dialFront.add(g);
     ringMeshes.push({ group:g, def, body, nodes:[], screwsAdded:false });
   });
 
-  // --- nodes (spheres + stems) per ring ---
-  buildNodes();
-
-  // --- relationship web (lines between linked nodes) ---
-  buildWeb();
-
-  // --- nucleus ---
-  buildNucleus();
-
-  // --- hands ---
-  buildHands();
+  // nucleus first so CORE-001 sphere exists when buildNodes links it
+  buildNucleus(dialFront);
+  buildNodes(dialFront);
+  buildWeb(dialFront);
+  buildHands(dialFront);
 
   // --- month labels at the very edge ---
   MONTHS.forEach((m,i) => {
     const a = (i/12)*Math.PI*2 - Math.PI/2;
     const r = 8.87;
     const label = makeTextLabel(m, {fontSize:9, color:'#252822', mono:true, bold:true});
-    label.position.set(Math.cos(a)*r, Math.sin(a)*r, 0.02);
-    // rotate label to face outward?  CSS2D always faces camera, but place it.
-    frontGroup.add(label);
+    label.position.set(Math.cos(a)*r, Math.sin(a)*r, 0.04);
+    dialFront.add(label);
   });
 
   // crosshair markers
@@ -518,8 +519,8 @@ function buildFront(){
     const a = i*Math.PI/2 - Math.PI/2;
     const r = 9.1;
     const el = makeTextLabel(ch, {fontSize:10, color:'#999b8e'});
-    el.position.set(Math.cos(a)*r, Math.sin(a)*r, 0);
-    frontGroup.add(el);
+    el.position.set(Math.cos(a)*r, Math.sin(a)*r, 0.02);
+    dialFront.add(el);
   });
 }
 
@@ -539,7 +540,7 @@ function makeTextLabel(text, opts={}){
   return obj;
 }
 
-function buildNodes(){
+function buildNodes(parent){
   // clear any existing
   ringMeshes.forEach(r => { r.nodes.forEach(n => r.group.remove(n.mesh)); r.nodes = []; });
   nodeMeshById.clear();
@@ -592,7 +593,7 @@ function updateNodeStates(){
   });
 }
 
-function buildWeb(){
+function buildWeb(parent){
   if (webMat){ webMat.dispose(); }
   if (frontGroup.getObjectByName('web')) frontGroup.remove(frontGroup.getObjectByName('web'));
   const lineGroup = new THREE.Group();
@@ -633,10 +634,10 @@ function buildWeb(){
   webMat = new THREE.LineBasicMaterial({ vertexColors:true, transparent:true, opacity:0.55, depthWrite:false });
   const lines = new THREE.LineSegments(geo, webMat);
   lineGroup.add(lines);
-  frontGroup.add(lineGroup);
+  parent.add(lineGroup);
 }
 
-function buildNucleus(){
+function buildNucleus(parent){
   nucleusGroup = new THREE.Group();
   nucleusGroup.position.z = 0.3;
   // core golden sphere
@@ -660,10 +661,10 @@ function buildNucleus(){
   nucleusGroup.add(dot);
   nucleusGroup.userData.orbit1 = orbit1;
   nucleusGroup.userData.orbit2 = orbit2;
-  frontGroup.add(nucleusGroup);
+  parent.add(nucleusGroup);
 }
 
-function buildHands(){
+function buildHands(parent){
   handsGroup = new THREE.Group();
   handsGroup.position.z = 0.35;
   // hour hand
@@ -681,117 +682,103 @@ function buildHands(){
   handsGroup.add(hHand, mHand, cap);
   handsGroup.userData.hHand = hHand;
   handsGroup.userData.mHand = mHand;
-  frontGroup.add(handsGroup);
+  parent.add(handsGroup);
 }
 
 // ---------- build back (case-back) ----------
 function buildBack(){
-  // large brushed titanium plate
+  // Back case cylinder below the front (top face at y = -0.20 at rest).
   const plate = new THREE.Mesh(new THREE.CylinderGeometry(8.2,8.2,0.32,96), matSatin);
-  plate.position.y = -0.16;
+  plate.position.y = -0.36;
   plate.castShadow = true; plate.receiveShadow = true;
   backGroup.add(plate);
 
-  // inset movement cover
-  const cover = new THREE.Mesh(new THREE.CylinderGeometry(5.2,5.2,0.06,64), new THREE.MeshStandardMaterial({color:0x9b9a8e, metalness:0.8, roughness:0.45}));
-  cover.position.y = -0.32 + 0.03;
-  backGroup.add(cover);
+  // dialBack: engraved content in dial XY space, rotated to face DOWN at rest,
+  // glued to the bottom face of the back cylinder. After a PI flip of clockRoot
+  // it will face UP toward the camera.
+  dialBack = new THREE.Group();
+  dialBack.rotation.x = Math.PI/2;
+  dialBack.position.y = -0.52;
+  backGroup.add(dialBack);
 
-  // engraved ring on cover
+  // movement cover
+  const cover = new THREE.Mesh(new THREE.CylinderGeometry(5.2,5.2,0.06,64),
+    new THREE.MeshStandardMaterial({color:0x9b9a8e, metalness:0.8, roughness:0.45}));
+  cover.position.z = 0.03;
+  dialBack.add(cover);
   const coverGroove = new THREE.Mesh(new THREE.TorusGeometry(5.0,0.015,8,100), matGroove);
-  coverGroove.rotation.x = Math.PI/2;
-  coverGroove.position.z = 0.035;
-  backGroup.add(coverGroove);
+  coverGroove.position.z = 0.06;
+  dialBack.add(coverGroove);
 
-  // cover screws (6 around the cover)
+  // 6 screws around cover
   const sc = 6;
   const csGeo = new THREE.CylinderGeometry(0.07,0.07,0.05,10);
   const csMesh = new THREE.InstancedMesh(csGeo, matDark, sc);
   const _mm = new THREE.Matrix4();
-  const _qq = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI/2,0,0));
   for (let k=0;k<sc;k++){
     const a = (k/sc)*Math.PI*2;
-    const pos = new THREE.Vector3(Math.cos(a)*5.1, Math.sin(a)*5.1, 0.03);
-    _mm.compose(pos, _qq, new THREE.Vector3(1,1,1));
+    _mm.compose(new THREE.Vector3(Math.cos(a)*5.1, Math.sin(a)*5.1, 0.025),
+                new THREE.Quaternion(), new THREE.Vector3(1,1,1));
     csMesh.setMatrixAt(k,_mm);
   }
   csMesh.instanceMatrix.needsUpdate = true;
-  backGroup.add(csMesh);
+  dialBack.add(csMesh);
 
-  // ruby bearing at center
+  // ruby bearing
   const ruby = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.05,24), matRuby);
-  ruby.position.z = 0.04;
-  backGroup.add(ruby);
+  ruby.position.z = 0.02; dialBack.add(ruby);
   const rubyRing = new THREE.Mesh(new THREE.TorusGeometry(0.22,0.015,8,40), matGold);
-  rubyRing.rotation.x = Math.PI/2;
-  rubyRing.position.z = 0.06;
-  backGroup.add(rubyRing);
+  rubyRing.position.z = 0.04; dialBack.add(rubyRing);
 
-  // engraved calibre text labels (CS2D)
-  const lbl1 = makeTextLabel('CALIBRE RC-01', {fontSize:9, mono:true, bold:true, color:'#252822'});
-  lbl1.position.set(0, 2.8, 0.05); backGroup.add(lbl1);
-  const lbl2 = makeTextLabel('RIPPLECIRCLE · 7 STRATES', {fontSize:8, mono:true, color:'#6a6d63'});
-  lbl2.position.set(0, 2.3, 0.05); backGroup.add(lbl2);
-  const lbl3 = makeTextLabel('N° 001 / 2026', {fontSize:9, mono:true, color:'#252822'});
-  lbl3.position.set(0, -2.3, 0.05); backGroup.add(lbl3);
-  const lbl4 = makeTextLabel('SWISS MADE · SW INSPIRED', {fontSize:7, mono:true, color:'#999a90', letterSpacing:'0.15em'});
-  lbl4.position.set(0, -2.8, 0.05); backGroup.add(lbl4);
+  const mk = (t,fs,col,x,y,z=0.04) => {
+    const L = makeTextLabel(t,{fontSize:fs,mono:true,bold:true,color:col});
+    L.position.set(x,y,z); dialBack.add(L); return L;
+  };
+  mk('CALIBRE RC-01',9,'#252822',0,2.8);
+  mk('RIPPLECIRCLE · 7 STRATES',8,'#6a6d63',0,2.3);
+  mk('N° 001 / 2026',9,'#252822',0,-2.3);
+  mk('SWISS MADE · SW INSPIRED',7,'#999a90',0,-2.8);
 
-  // crown MODE (top-left) — knurled cylinder
-  const crown1 = new THREE.Group();
-  crown1.name = 'crown-mode';
-  const crownBody = new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,0.18,48), matCrown);
-  crownBody.rotation.x = Math.PI/2;
-  crown1.add(crownBody);
-  // knurl rings
-  for (let k=0;k<10;k++){
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28,0.012,4,24), matDark);
-    ring.position.z = -0.08 + k*0.018;
-    crown1.add(ring);
+  // knurled crowns MODE/FOCUS
+  function makeCrown(x,y,label,spin){
+    const c = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,0.18,48), matCrown);
+    c.add(body);
+    for (let k=0;k<10;k++){
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28,0.012,4,24), matDark);
+      ring.position.z = -0.08 + k*0.018; c.add(ring);
+    }
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.29,0.29,0.02,48), matGold);
+    cap.position.z = 0.1; c.add(cap);
+    c.position.set(x,y,0.22);
+    c.userData.idleSpin = spin;
+    dialBack.add(c);
+    mk(label,8,'#252822',x,y+0.5,0.04);
+    const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.55,0.4,24), new THREE.MeshBasicMaterial({visible:false}));
+    c.add(hit);
+    return c;
   }
-  const cap1 = new THREE.Mesh(new THREE.CylinderGeometry(0.29,0.29,0.02,48), matGold);
-  cap1.rotation.x = Math.PI/2;
-  cap1.position.z = 0.1;
-  crown1.add(cap1);
-  crown1.position.set(-6.4, 2.4, 0.1);
-  crown1.userData.idleSpin = 0.18;
-  backGroup.add(crown1);
+  const crown1 = makeCrown(-6.4, 2.4, 'MODE', 0.18);
+  const crown2 = makeCrown( 6.4, 2.4, 'FOCUS',-0.12);
+  dialBack.userData.crowns = [crown1, crown2];
 
-  const cl1 = makeTextLabel('MODE', {fontSize:8, mono:true, bold:true, color:'#252822'});
-  cl1.position.set(-6.4, 2.9, 0.1); backGroup.add(cl1);
-
-  // crown FOCUS (top-right)
-  const crown2 = crown1.clone(true);
-  crown2.name = 'crown-focus';
-  crown2.position.set(6.4, 2.4, 0.1);
-  crown2.userData.idleSpin = -0.12;
-  backGroup.add(crown2);
-  const cl2 = makeTextLabel('FOCUS', {fontSize:8, mono:true, bold:true, color:'#252822'});
-  cl2.position.set(6.4, 2.9, 0.1); backGroup.add(cl2);
-
-  // gold F/R pusher (right side, like a chrono pusher)
+  // gold F/R pusher
   const pusher = new THREE.Group();
   const pBase = new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.24,24), matDark);
-  pBase.rotation.x = Math.PI/2;
   pusher.add(pBase);
   const pCap = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.06,24), matGoldCap);
-  pCap.rotation.x = Math.PI/2; pCap.position.z = 0.12;
-  pusher.add(pCap);
-  pusher.position.set(7.6, -2.0, 0.08);
-  pusher.name = 'pusher-fr';
-  backGroup.add(pusher);
-  const pl = makeTextLabel('F-R', {fontSize:7, mono:true, bold:true, color:'#a5864c'});
-  pl.position.set(7.6, -1.6, 0.08); backGroup.add(pl);
+  pCap.position.z = 0.12; pusher.add(pCap);
+  pusher.position.set(7.6,-2.0,0.20);
+  dialBack.add(pusher);
+  mk('F-R',7,'#a5864c',7.6,-1.6,0.04);
 
-  // decorative screws at 4 corners around cover
-  [ [-7,-7],[7,-7],[-7,7],[7,7] ].forEach(([x,y]) => {
-    const s = new THREE.Mesh(new THREE.CylinderGeometry(0.10,0.10,0.05,10), matDark);
-    s.rotation.x = Math.PI/2; s.position.set(x,y,0.02);
-    backGroup.add(s);
+  // corner screws
+  [[-7,-7],[7,-7],[-7,7],[7,7]].forEach(([x,y])=>{
+    const sc2 = new THREE.Mesh(new THREE.CylinderGeometry(0.10,0.10,0.05,10), matDark);
+    sc2.position.set(x,y,0.025); dialBack.add(sc2);
   });
-
-  backGroup.userData.crowns = [crown1, crown2];
 }
+
 
 // ---------- interactions ----------
 function pointerToNdc(e){
@@ -858,7 +845,7 @@ viewport.addEventListener('wheel', (e) => {
   const dir = new THREE.Vector3().subVectors(camera.position, controls.target);
   dir.multiplyScalar(dz);
   const newLen = dir.length();
-  if (newLen < 6 || newLen > 26) return;
+  if (newLen < 8 || newLen > 32) return;
   camera.position.copy(controls.target).add(dir);
 }, {passive:false});
 
@@ -880,8 +867,8 @@ window.addEventListener('keydown', (e) => {
 function zoom(mult){
   const dir = new THREE.Vector3().subVectors(camera.position, controls.target);
   dir.multiplyScalar(mult);
-  if (dir.length() < 6) dir.setLength(6);
-  if (dir.length() > 26) dir.setLength(26);
+  if (dir.length() < 8) dir.setLength(8);
+  if (dir.length() > 32) dir.setLength(32);
   camera.position.copy(controls.target).add(dir);
 }
 zoomInBtn.addEventListener('click', ()=>zoom(0.9));
@@ -940,19 +927,19 @@ function setView(view){
   const t = controls.target.clone();
   let pos;
   switch(view){
-    case 'front': pos = new THREE.Vector3(0, 0.2, 14); break;
-    case 'side':  pos = new THREE.Vector3(14, 0.2, 0); break;
-    case 'top':   pos = new THREE.Vector3(0.1, 14, 0.001); break;
+    case 'front': pos = new THREE.Vector3(0, 14, 0.001); break;
+    case 'side':  pos = new THREE.Vector3(14, 3.0, 0); break;
+    case 'top':   pos = new THREE.Vector3(0.001, 15, 0); break;
     case 'explode':
-      RING_DEFS.forEach((d,i)=>{ ringTargetZ[i] = 0.4 + i*0.7; });
+      RING_DEFS.forEach((d,i)=>{ ringTargetZ[i] = 0.3 + i*0.4; });
       explodeInput.value = 60; explodeValue.textContent='60 %';
-      pos = new THREE.Vector3(5, 9, 11);
+      pos = new THREE.Vector3(4, 10, 11);
       break;
-    default: pos = new THREE.Vector3(0, 6.5, 13);
+    default: pos = new THREE.Vector3(0.4, 9.6, 11.6);
       ringTargetZ = RING_DEFS.map(()=>0);
       explodeInput.value=0; explodeValue.textContent='0 %';
   }
-  animateCamera(pos, new THREE.Vector3(0,0,0));
+  animateCamera(pos, new THREE.Vector3(0,0.4,0));
 }
 viewButtons.forEach(b => b.addEventListener('click', ()=>setView(b.dataset.view)));
 
@@ -1447,24 +1434,24 @@ function splitCSVLine(line){
   return out.map(s=>s.replace(/^"|"$/g,''));
 }
 function rebuildAll(){
-  // remove all ring groups
-  ringMeshes.forEach(r => { frontGroup.remove(r.group); });
+  const pr = dialFront || frontGroup;
+  ringMeshes.forEach(r => { pr.remove(r.group); });
   ringMeshes = [];
   if (webMat) webMat.dispose();
-  if (frontGroup.getObjectByName('web')) frontGroup.remove(frontGroup.getObjectByName('web'));
-  if (nucleusGroup) frontGroup.remove(nucleusGroup);
-  if (handsGroup) frontGroup.remove(handsGroup);
-  if (spokesGroup) frontGroup.remove(spokesGroup);
-  if (outerTicks) frontGroup.remove(outerTicks);
+  if (pr.getObjectByName('web')) pr.remove(pr.getObjectByName('web'));
+  if (nucleusGroup) pr.remove(nucleusGroup);
+  if (handsGroup) pr.remove(handsGroup);
+  if (spokesGroup) pr.remove(spokesGroup);
+  if (outerTicks) pr.remove(outerTicks);
   // remove old month labels/crosshairs (CSS2DObjects whose element has no dataset mark; easiest: rebuild by re-calling buildFront partially)
   // Simpler: rebuild rings+nodes+web+nucleus+hands — months/crosshairs were added once and stay.
   // Remove existing CSS2D labels from months/crosshairs by marking not present (we leave them).
   // Re-run the ring/node build portion. To avoid month duplication, only run ring build:
   buildRingsOnly();
-  buildNodes();
-  buildWeb();
-  buildNucleus();
-  buildHands();
+  buildNucleus(dialFront || frontGroup);
+  buildNodes(dialFront || frontGroup);
+  buildWeb(dialFront || frontGroup);
+  buildHands(dialFront || frontGroup);
   ringVisibility = RING_DEFS.map(()=>true);
   buildRingControls();
   selectNode(data.nodes.find(n=>n.id==='CORE-001') ? 'CORE-001' : data.nodes[0].id);
@@ -1482,7 +1469,8 @@ function rebuildAllHard(){
 function buildRingsOnly(){
   // We keep the existing outerTicks/spokes/backing/months and just rebuild rings.
   // Remove existing ring groups:
-  ringMeshes.forEach(r => frontGroup.remove(r.group));
+  const pr = dialFront || frontGroup;
+  ringMeshes.forEach(r => pr.remove(r.group));
   ringMeshes = [];
   const ringMaterials = [matLight, matTitanium, matSilver, matLight, matTitanium, matSilver, matLight];
   const _m = new THREE.Matrix4();
@@ -1502,9 +1490,9 @@ function buildRingsOnly(){
     inlay.position.z = def.depth*0.5+0.002;
     g.add(inlay);
     const innerRail = new THREE.Mesh(new THREE.TorusGeometry(innerR,0.012,6,80), matInk);
-    innerRail.rotation.x = Math.PI/2; g.add(innerRail);
+    g.add(innerRail);
     const outerRail = new THREE.Mesh(new THREE.TorusGeometry(outerR,0.012,6,80), matInk);
-    outerRail.rotation.x = Math.PI/2; g.add(outerRail);
+    g.add(outerRail);
     const tickCount = [60,60,12,12,8,8,6][i];
     const tickLen = [0.10,0.09,0.09,0.08,0.07,0.06,0.06][i];
     const rTickGeo = new THREE.BoxGeometry(0.014, tickLen, def.depth*0.5);
@@ -1548,7 +1536,7 @@ function buildRingsOnly(){
     }
     const ringLabel=makeTextLabel(def.label.toUpperCase(),{fontSize:7,color:'#999a90',mono:true,letterSpacing:'0.2em'});
     ringLabel.position.set(0,-(def.radius+0.48),0.04); g.add(ringLabel);
-    frontGroup.add(g);
+    pr.add(g);
     ringMeshes.push({group:g, def, body, nodes:[]});
   });
 }
@@ -1589,8 +1577,8 @@ window.addEventListener('keydown', (e) => {
 (function wireBackCrowns(){
   // After init, backGroup.userData.crowns are two groups. We make them draggable when on the back side.
   setTimeout(() => {
-    if (!backGroup || !backGroup.userData?.crowns) return;
-    const crowns = backGroup.userData.crowns;
+    const crowns = dialBack?.userData?.crowns;
+    if (!crowns) return;
     const state = { dragging:null, startX:0, startRot:0 };
     crowns.forEach((c, i) => {
       const mesh = c.children[0]; // cylinder body
