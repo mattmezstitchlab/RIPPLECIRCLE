@@ -39,7 +39,8 @@ import { DocSheet } from './DocSheet';
 import { ActionPanel } from './ActionPanel';
 import { AudioPreview } from './AudioPreview';
 import { ClockDial } from './ClockDial';
-import { InstantInspector } from './InstantInspector';
+import { InstantInspector, type InspectorPerson } from './InstantInspector';
+import { ProfilePortrait } from './ProfilePortrait';
 import { PublicIncidentDemo } from './PublicIncidentDemo';
 import { PublicAftermathDemo } from './PublicAftermathDemo';
 import { type PublicMode, type RepairId } from '../../utils/publicSimulation';
@@ -597,9 +598,24 @@ export const Ripple: React.FC<RippleProps> = ({
     : media ? media.legend : journeySel ? journeySel.title : dayFocus !== null
       ? new Date(YEAR,0,dayFocus+1).toLocaleDateString('fr-FR',{ day:'numeric',month:'long' })
       : activeMoment.title;
-  const activePeople = [...new Set(activeMoment.roles
+  const inspectorPerson = (id: string): InspectorPerson => ({
+    id,
+    name: fullName(personData[id]),
+    role: personData[id].job,
+    photo: photoOf(account, id)
+  });
+  const selectedPerson = person ? inspectorPerson(person.id) : null;
+  const contextPeople = [...new Set(activeMoment.roles
     .map(role => ORDER.find(id => dayRoleOf(personData[id]) === role))
-    .filter((id): id is string => Boolean(id)))].map(id => personData[id].first);
+    .filter((id): id is string => Boolean(id)))]
+    .filter(id => id !== selectedPerson?.id)
+    .slice(0, 3)
+    .map(inspectorPerson);
+  const effectPeople: Partial<Record<string, InspectorPerson>> = {};
+  for (const impact of activeMoment.impacts ?? []) {
+    const id = ORDER.find(item => dayRoleOf(personData[item]) === impact.role);
+    if (id) effectPeople[impact.role] = inspectorPerson(id);
+  }
 
   return (
     <main className="max-w-[1680px] mx-auto px-4 sm:px-6 pt-3 pb-5">
@@ -1306,7 +1322,9 @@ export const Ripple: React.FC<RippleProps> = ({
         <aside className="ripple-inspector" aria-label="Comprendre et agir">
           <InstantInspector
             minute={exploreMinute} selectedKind={focus.kind} selectedTitle={focusTitle}
-            moment={activeMoment} people={activePeople}
+            moment={activeMoment}
+            selectedPerson={selectedPerson} contextPeople={contextPeople}
+            effectPeople={effectPeople} onPerson={id=>choose({kind:'person',id})}
             playingTitle={nowTrack?.title ?? null} following={followDemo}
             onMinute={chooseInstant}
             onFollow={() => {
