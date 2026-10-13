@@ -85,7 +85,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
       </header>
 
       <div className="mt-7 grid gap-8 md:grid-cols-[210px_minmax(0,1fr)]">
-        <nav aria-label="Réglages du compte" className="flex md:flex-col gap-1 overflow-x-auto no-scrollbar md:overflow-visible md:sticky md:top-[76px] md:self-start">
+        <nav aria-label="Réglages du compte" className="account-settings-nav grid grid-cols-4 md:flex md:flex-col gap-1 md:sticky md:top-[76px] md:self-start">
           {tabs.map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
@@ -99,7 +99,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
                   setConfirmReset(false);
                 }}
                 aria-current={active ? 'page' : undefined}
-                className="pressable shrink-0 flex items-center gap-2.5 px-3.5 py-3 rounded-[9px] text-left text-[13px] font-semibold"
+                className="account-settings-tab pressable min-w-0 flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-2.5 px-1 md:px-3.5 py-2.5 md:py-3 rounded-[9px] text-center md:text-left text-[10px] md:text-[13px] font-semibold"
                 style={active ? { background: 'var(--account-field,#f2f2f7)', color: INK } : { color: MUTED }}
               >
                 <Icon className="w-4 h-4 shrink-0" /> {t.label}
@@ -115,7 +115,13 @@ export const AccountPage: React.FC<AccountPageProps> = ({ account, onChange, onT
             <div className="news-swap mt-5">
               <div className="flex items-center gap-4">
                 <button type="button" onClick={() => fileRef.current?.click()} aria-label="Changer la photo de profil" className="relative w-[84px] h-[84px] rounded-full overflow-hidden shrink-0 border-[3px] border-[#0A84FF]">
-                  <img src={account.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  <span className="absolute inset-0 flex items-center justify-center text-[23px] font-extrabold"
+                    style={{ background: 'var(--account-field,#f2f2f7)', color: INK }} aria-hidden="true">
+                    {account.first.trim().slice(0, 1)}{account.last.trim().slice(0, 1)}
+                  </span>
+                  <img key={account.avatarUrl} src={account.avatarUrl} alt=""
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onError={(event) => { event.currentTarget.style.display = 'none'; }} />
                   <span className="absolute bottom-0 inset-x-0 text-center text-[9px] font-bold py-1 bg-black/60 text-white">PHOTO</span>
                 </button>
                 <input
