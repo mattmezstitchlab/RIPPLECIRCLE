@@ -1060,7 +1060,7 @@ export const Ripple: React.FC<RippleProps> = ({
             )}
 
             {/* Onde audio : niveau mesuré sur un extrait local, jamais sur l'horloge simulée. */}
-            {!isBack && (
+            {(
               <circle
                 ref={audioPulseRef}
                 cx={C}
@@ -1140,9 +1140,8 @@ export const Ripple: React.FC<RippleProps> = ({
                   );
                 })}
 
-                {/* Interest Rings — face A uniquement, le dos reste photos seules */}
-                {!isBack &&
-                  INTERESTS.map((it, i) => (
+                {/* Anneaux d’intérêts permanents */}
+                {INTERESTS.map((it, i) => (
                     <circle
                       key={it.id}
                       cx={C}
@@ -1156,7 +1155,7 @@ export const Ripple: React.FC<RippleProps> = ({
                   ))}
 
                 {/* ---------- Cordes de synergie (liens entre personnes) ---------- */}
-                {!isBack && relationsVisible && person && personLinks.length > 0 && (
+                {relationsVisible && person && personLinks.length > 0 && (
                   <g key={`relations-${person.id}-${relationPulse}`} pointerEvents="none">
                     {personLinks.slice(0, 14).map((link, index) => {
                       const otherId = link.a === person.id ? link.b : link.a;
@@ -1190,9 +1189,8 @@ export const Ripple: React.FC<RippleProps> = ({
                   strokeWidth={1.5}
                 />
 
-                {/* Pastilles d'intérêts — face A uniquement */}
-                {!isBack &&
-                  ORDER.map((id) =>
+                {/* Pastilles d’intérêts */}
+                {ORDER.map((id) =>
                     personData[id].interests.map((it) => {
                       const ri = INTERESTS.findIndex((k) => k.id === it);
                       const p = polar(R.ring0 + ri * RING_GAP, ANGLE[id]);
@@ -1213,14 +1211,14 @@ export const Ripple: React.FC<RippleProps> = ({
                     })
                   )}
 
-                {/* Face A : points couleur par table — Face B : photos seules, sans contour */}
+                {/* Repères colorés, portraits accessibles à droite */}
                 {ORDER.map((id) => {
                   const p = polar(R.people, ANGLE[id]);
                   const isFocus = person?.id === id;
                   const music = nowTrack?.by === id;
                   const impacted = causalHighlight && impactedPeopleIds.includes(id);
                   const dotColor = GROUP_ARC.find((g) => g.id === TABLE_OF[id]?.id)?.color ?? INK;
-                  if (!isBack) {
+                  
                     const dotR = isFocus ? 14 : 9;
                     return (
                       <g
@@ -1243,51 +1241,9 @@ export const Ripple: React.FC<RippleProps> = ({
                         <title>{`${fullName(personData[id])} · ${personData[id].job}`}</title>
                       </g>
                     );
-                  }
-                  const baseR = isFocus ? 30 : 22;
-                  return (
-                    <g
-                      key={id}
-                      className="cursor-pointer"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={() => choose({ kind: 'person', id })}
-                    >
-                      <clipPath id={`${instanceId.current}-p-${id}`}>
-                        <circle cx={p.x} cy={p.y} r={baseR} />
-                      </clipPath>
-                      <image
-                        href={personPhoto(id)}
-                        x={p.x - baseR}
-                        y={p.y - baseR}
-                        width={baseR * 2}
-                        height={baseR * 2}
-                        clipPath={`url(#${instanceId.current}-p-${id})`}
-                        preserveAspectRatio="xMidYMid slice"
-                      />
-                      {isFocus && <circle cx={p.x} cy={p.y} r={baseR + 6} fill="none" stroke={dotColor} strokeWidth={3} />}
-                      {music && (
-                        <g>
-                          <circle cx={p.x - baseR * 0.72} cy={p.y - baseR * 0.72} r={8} fill={INK} stroke="#fff" strokeWidth={1.5} />
-                          <text
-                            x={p.x - baseR * 0.72}
-                            y={p.y - baseR * 0.72 + 0.5}
-                            textAnchor="middle"
-                            dominantBaseline="central"
-                            fontSize={10}
-                            fontWeight="900"
-                            fill="#fff"
-                          >
-                            ♪
-                          </text>
-                        </g>
-                      )}
-                      <title>{`${fullName(personData[id])} · ${personData[id].job}`}</title>
-                    </g>
-                  );
-                })}
+                                  })}
 
-                {/* Rotating Meeting Needle — face A uniquement */}
-                {!isBack && (
+                {/* Aiguille de sélection des personnes */}
                 <g style={{ transform: `rotate(${angle}deg)`, transformOrigin: `${C}px ${C}px` }} pointerEvents="none">
                   <line
                     x1={C}
@@ -1301,10 +1257,9 @@ export const Ripple: React.FC<RippleProps> = ({
                   />
                   <circle cx={C} cy={C - R.people + 34} r={5} fill={INK} stroke="#fff" strokeWidth={1.5} />
                 </g>
-                )}
               </g>
             )}
-          {!isBack && causalHighlight && show('day') && (
+          {causalHighlight && show('day') && (
             <g data-testid="public-causal-paths" pointerEvents="none">
               {causalDemoLinks().map((link,i)=>{
                 const a=timeAngle(link.sourceMinute);
@@ -1319,14 +1274,14 @@ export const Ripple: React.FC<RippleProps> = ({
               })}
             </g>
           )}
-          {!isBack && (
+          {(
             <circle cx={C} cy={C} r={R.hours} fill="none" stroke="transparent" strokeWidth={30}
               className="ripple-time-scrub-hit" data-testid="timeline-scrub-ring"
               style={{touchAction:'none',cursor:'crosshair'}}>
               <title>Glissez pour explorer les instants de 15 h à 5 h</title>
             </circle>
           )}
-          {!isBack && <ClockDial minutes={exploreMinute} />}
+          <ClockDial minutes={exploreMinute} />
           </svg>
 
         </div>
