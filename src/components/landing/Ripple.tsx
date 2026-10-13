@@ -599,7 +599,7 @@ export const Ripple: React.FC<RippleProps> = ({
   const scrubValue = Math.max(ORCH_START, Math.min(ORCH_END, minutes));
 
   return (
-    <main className="max-w-[1440px] mx-auto px-4 sm:px-6 pt-5 pb-16">
+    <main className="max-w-[1680px] mx-auto px-4 sm:px-6 pt-3 pb-5">
       {/* Un instrument central : les vues se choisissent autour du cadran. */}
       <div className="ripple-stage">
         <div className="ripple-watch-column">
@@ -1322,17 +1322,6 @@ export const Ripple: React.FC<RippleProps> = ({
                       >
                         {account.rsvp === 'yes' ? `Présent · ${account.partySize}` : account.rsvp === 'no' ? 'Absent' : 'À confirmer'}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sfx.playNodeClick();
-                          window.location.hash = 'account';
-                        }}
-                        className="pressable px-2 py-0.5 rounded-full text-[9px] sm:text-[10.5px] font-bold"
-                        style={{ background: INK, color: 'var(--ripple-surface, #fff)' }}
-                      >
-                        Compte
-                      </button>
                     </div>
                   ) : (
                     <p className="mt-1 text-[9px] sm:text-[11px] font-medium px-1 line-clamp-2" style={{ color: MUTED }}>
@@ -1519,7 +1508,7 @@ export const Ripple: React.FC<RippleProps> = ({
                 </aside>
       </div>
 
-      <p className="ripple-demo-footnote">Démonstration fictive · ${NET_GUESTS.length + TEAM_GROUP.guests.length} profils enregistrés localement · aucune synchronisation réelle</p>
+      <p className="ripple-demo-footnote">Démonstration fictive · {NET_GUESTS.length + TEAM_GROUP.guests.length} profils enregistrés localement · aucune synchronisation réelle</p>
     </main>
   );
 };
