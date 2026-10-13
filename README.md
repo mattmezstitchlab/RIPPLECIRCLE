@@ -45,3 +45,12 @@ Depuis **Playlist**, sélectionner un titre permet de charger **un fichier audio
 Depuis le cercle, le bouton « Relations » masque ou affiche les liaisons directes de la personne sélectionnée. Les connexions sont colorées par groupe, limitées à 14 traits pour rester lisibles et respectent la préférence « réduire les animations ».
 
 La **régie simulée** est rangée dans un panneau repliable. La lecture d'un extrait musical ne modifie pas l'horloge de régie, les programmes ni les données enregistrées.
+
+## Interface instrument (causalité d'abord)
+
+- **Header sans navigation** : seule l'entrée Compte demeure ; le mode jour/nuit se règle dans Compte → Affichage.
+- **Commandes rondes** : les vues sont accessibles autour du cadran, pas dans le header.
+- **Un cadran centré** : diamètre limité par la hauteur de la fenêtre et les colonnes. Les aiguilles centrales suivent une horloge standard 12 heures (12 en haut, rotation horaire), tandis que l'aiguille rouge extérieure conserve l'axe temporel linéaire 15:00 → 05:00 du programme.
+- **Colonne causale prioritaire** : synthèse cause → conséquences → plan B visible sans parcourir les panneaux ; sélection d'une personne ou d'un moment = informations uniques à droite.
+- **Détails secondaires repliés** : temps de régie, simulateur d'actions, liste exhaustive ; aucune de ces vues n'est nécessaire pour comprendre le premier écran.
+- **Démo explicite** : horloge de régie et causalité sont simulées, pas un événement réel.
