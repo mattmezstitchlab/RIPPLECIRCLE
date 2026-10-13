@@ -12,7 +12,7 @@ RIPPLECIRCLE propose **un cercle interactif en SVG 2D**, organisé en anneaux. L
 - **Plan de tables** : personnes, groupes et relations.
 - **Compte** : profil et préférences.
 
-Le cercle conserve le zoom, le déplacement, la sélection d'éléments, les couleurs de couches, les modes jour/nuit, le recto/verso et les indicateurs d'orchestration.
+Le cercle conserve le zoom, le déplacement, la sélection d'éléments, les couleurs de couches, le thème clair unique, le recto/verso et les indicateurs d'orchestration.
 
 **Musique :** la playlist est un **conducteur temporel**, avec une couleur par séquence (cérémonie, cocktail, transition, dîner, soirée). Les effets sonores de l'interface sont produits via Web Audio et peuvent être coupés. **La lecture audio des enregistrements musicaux n'est pas encore implémentée** ; la présence d'un titre dans la playlist ne signifie pas que le morceau est diffusé.
 
@@ -48,7 +48,7 @@ La **régie simulée** est rangée dans un panneau repliable. La lecture d'un ex
 
 ## Interface instrument (causalité d'abord)
 
-- **Header sans navigation** : seule l'entrée Compte demeure ; le mode jour/nuit se règle dans Compte → Affichage.
+- **Header sans navigation** : seule l'entrée Compte demeure ; le thème clair est fixe. Compte réunit Profil, RSVP, Parcours et Mes données.
 - **Commandes rondes** : les vues sont accessibles autour du cadran, pas dans le header.
 - **Un cadran centré** : diamètre limité par la hauteur de la fenêtre et les colonnes. Les aiguilles centrales suivent une horloge standard 12 heures (12 en haut, rotation horaire), tandis que l'aiguille rouge extérieure conserve l'axe temporel linéaire 15:00 → 05:00 du programme.
 - **Colonne causale prioritaire** : synthèse cause → conséquences → plan B visible sans parcourir les panneaux ; sélection d'une personne ou d'un moment = informations uniques à droite.
@@ -73,3 +73,16 @@ Trois commandes compactes dans l'inspecteur ouvrent :
 - **Rejouer** : chronologie scénarisée avec lecteur manuel, progression, choix d'instants et comparaison référence / sans plan / option sélectionnée. Aucun journal réel ou preuve de résultat historique.
 
 Ces capacités reposent exclusivement sur les modèles statiques publics `publicSimulation.ts` et `publicAftermath.ts`. Ce n'est ni un solveur général, ni une détection d’événement réel ; le **noyau causal confidentiel n’est pas présent dans ce dépôt**.
+
+
+## Compte V4.1 — thème clair et données locales
+
+Le mode nuit est supprimé du rendu, de la page Compte et du modèle de compte. Les profils précédemment créés sont **conservés** ; seule leur ancienne préférence de thème est retirée lors du chargement.
+
+L'espace Compte présente quatre sections : **Profil** (coordonnées et centres d'intérêt), **RSVP** (réponses locales qui ne sont pas envoyées), **Parcours** (étapes du cadran) et **Mes données** (état de stockage, téléchargement JSON, remise du profil fictif avec confirmation).
+
+- La sauvegarde est effectuée dans le stockage local du navigateur, sans authentification ou partage entre appareils.
+- L'export JSON contient les coordonnées et informations RSVP : il doit être conservé de manière privée.
+- La réinitialisation replace **uniquement** le profil/RVSP/parcours par la démonstration et ne supprime pas les playlists ou préférences audio.
+- La préférence de partage des coordonnées est une intention enregistrée localement ; elle n'autorise aucune diffusion aux autres invités dans cette version.
+- La sélection d'une navette est un souhait local, pas une réservation effective.
