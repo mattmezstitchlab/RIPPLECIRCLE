@@ -1285,3 +1285,46 @@ input[type="range"].ios-slider {
 
 /* V3 final : lisibilité des rôles dans la chaîne de conséquences. */
 .ripple-effects-list li span { margin-right: 7px; }
+
+
+/* V3 tablette paysage : inspecteur visible à droite, sans scroll de page préalable.
+   Mobile étroit conserve le cadran sur toute la largeur. */
+@media (min-width:900px) and (max-width:1279px) {
+  .ripple-stage {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 340px;
+    column-gap:18px;
+    align-items:start;
+    justify-content:stretch;
+    min-height:calc(100dvh - 196px);
+  }
+  .ripple-watch-column {
+    width:min(60dvh,100%);
+    max-width:100%;
+    min-width:0;
+    justify-self:center;
+    order:0;
+    gap:7px;
+  }
+  .ripple-inspector {
+    display:flex;
+    flex-direction:column;
+    align-self:start;
+    position:relative;
+    order:1;
+    top:auto;
+    right:auto;
+    width:100%;
+    max-height:calc(100dvh - 205px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding:0 4px 0 0;
+  }
+  .ripple-inspector > .ripple-context-panel {
+    width:100%;
+    flex-shrink:0;
+    order:0;
+  }
+  .ripple-orbit-nav {gap:6px;}
+  .ripple-orbit-button {width:38px;height:38px;}
+}
