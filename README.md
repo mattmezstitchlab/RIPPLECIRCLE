@@ -37,3 +37,11 @@ La source du cercle est `src/components/landing/Ripple.tsx`. La palette et les r
 4. **Des données fiables** : distinguer clairement la simulation et les informations réellement confirmées.
 
 Les anciennes versions 3D ont été retirées des sources actives. Elles restent consultables dans l'historique Git.
+
+## V2 — musique et relations
+
+Depuis **Playlist**, sélectionner un titre permet de charger **un fichier audio présent sur votre appareil**, puis d'écouter au maximum **30 secondes**. La forme de l'anneau musical réagit au niveau sonore analysé par le navigateur (si Web Audio est disponible). Le fichier reste local : aucun téléversement, sauvegarde ou recherche automatique de morceaux commerciaux. Le bouton « Couper les effets sonores » concerne uniquement les effets d'interface, pas le lecteur d'aperçu.
+
+Depuis le cercle, le bouton « Relations » masque ou affiche les liaisons directes de la personne sélectionnée. Les connexions sont colorées par groupe, limitées à 14 traits pour rester lisibles et respectent la préférence « réduire les animations ».
+
+La **régie simulée** est rangée dans un panneau repliable. La lecture d'un extrait musical ne modifie pas l'horloge de régie, les programmes ni les données enregistrées.

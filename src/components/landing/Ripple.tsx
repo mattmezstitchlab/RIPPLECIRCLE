@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BellRing,
+  Network,
   Pause,
   Play,
   RotateCcw,
@@ -31,6 +32,7 @@ import { ROLES } from '../../data/roles';
 import type { AccountState, JourneyMilestone } from '../../data/account';
 import { DocSheet } from './DocSheet';
 import { ActionPanel } from './ActionPanel';
+import { AudioPreview } from './AudioPreview';
 import { Scene } from '../../data/orchestra';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { useReactiveOrchestra } from '../../engine/orchestra/useReactiveOrchestra';
@@ -279,6 +281,16 @@ export const Ripple: React.FC<RippleProps> = ({
   );
 
   // Zoom & Pan state
+  const [relationsVisible, setRelationsVisible] = useState(true);
+  const [relationPulse, setRelationPulse] = useState(0);
+  const audioPulseRef = useRef<SVGCircleElement | null>(null);
+  const onAudioLevel = useCallback((level: number) => {
+    const ring = audioPulseRef.current;
+    if (!ring) return;
+    ring.setAttribute('stroke-width', level > 0 ? (2 + level * 19).toFixed(1) : '0');
+    ring.setAttribute('opacity', level > 0 ? (0.28 + level * 0.65).toFixed(2) : '0');
+  }, []);
+
   const [zoom, setZoom] = useState<number>(1.0);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const night = theme === 'night';
@@ -402,7 +414,10 @@ export const Ripple: React.FC<RippleProps> = ({
     sfx.playNodeClick();
     setTurning(false);
     setFocus(f);
-    if (f.kind === 'person') setAngle(ANGLE[f.id]);
+    if (f.kind === 'person') {
+      setAngle(ANGLE[f.id]);
+      setRelationPulse((n) => n + 1);
+    }
   };
 
   /* ------------- Cross-layer link highlighting ------------- */
@@ -684,7 +699,18 @@ export const Ripple: React.FC<RippleProps> = ({
             );
           })}
         </div>
-        <div className="flex items-center gap-1.5" role="toolbar" aria-label="Zoom du cercle">
+        <div className="flex items-center gap-1.5" role="toolbar" aria-label="Contrôles du cercle">
+        <button
+          type="button"
+          onClick={() => setRelationsVisible((visible) => !visible)}
+          aria-pressed={relationsVisible}
+          aria-label={relationsVisible ? "Masquer les relations" : "Afficher les relations"}
+          title={relationsVisible ? "Masquer les connexions" : "Afficher les connexions"}
+          className="pressable w-8 h-8 rounded-full border flex items-center justify-center"
+          style={{ background: relationsVisible ? "var(--ripple-soft, #eef2ff)" : "var(--ripple-surface, #fff)", borderColor: "var(--ripple-line, rgba(0,0,0,0.1))", color: INK }}
+        >
+          <Network className="w-4 h-4" />
+        </button>
         <button
           type="button"
           onClick={() => handleZoom(-ZOOM_STEP)}
@@ -1120,6 +1146,21 @@ export const Ripple: React.FC<RippleProps> = ({
               </g>
             )}
 
+            {/* Onde audio : niveau mesuré sur un extrait local, jamais sur l'horloge simulée. */}
+            {!isBack && (
+              <circle
+                ref={audioPulseRef}
+                cx={C}
+                cy={C}
+                r={R.playlist - 23}
+                fill="none"
+                stroke={track ? SETS[track.set].color : ACCENTS.blue}
+                strokeWidth={0}
+                opacity={0}
+                pointerEvents="none"
+              />
+            )}
+
             {/* Red Needle - Time Indicator */}
             {(show('day') || show('memory') || show('playlist')) && (
               <g pointerEvents="none">
@@ -1202,27 +1243,25 @@ export const Ripple: React.FC<RippleProps> = ({
                   ))}
 
                 {/* ---------- Cordes de synergie (liens entre personnes) ---------- */}
-                {!isBack && relationLinks.length > 0 && (
-                  <g pointerEvents="none">
-                    {relationLinks.map((l, i) => {
-                      const lit = related.people.has(l.a) && related.people.has(l.b);
-                      // Only show chords when one endpoint is the focused person (avoid spider web).
-                      const relevant =
-                        (focus.kind === 'person' && (l.a === focus.id || l.b === focus.id)) ||
-                        lit;
-                      if (!relevant && focus.kind === 'person') return null;
-                      if (!relevant && activeLayer !== 'overview' && activeLayer !== 'people') return null;
-                      const emphasis = focus.kind === 'person' && (l.a === focus.id || l.b === focus.id) ? 1 : 0.22;
+                {!isBack && relationsVisible && person && personLinks.length > 0 && (
+                  <g key={`relations-${person.id}-${relationPulse}`} pointerEvents="none">
+                    {personLinks.slice(0, 14).map((link, index) => {
+                      const otherId = link.a === person.id ? link.b : link.a;
+                      const color = GROUP_ARC.find((group) => group.id === TABLE_OF[otherId]?.id)?.color ?? ACCENTS.blue;
                       return (
                         <path
-                          key={`chord-${i}`}
-                          d={chordPath(ANGLE[l.a], ANGLE[l.b])}
+                          key={`chord-${person.id}-${otherId}`}
+                          className="ripple-relation-link"
+                          d={chordPath(ANGLE[link.a], ANGLE[link.b])}
                           fill="none"
-                          stroke={INK}
-                          strokeWidth={focus.kind === 'person' && (l.a === focus.id || l.b === focus.id) ? 1.4 : 0.7}
-                          strokeOpacity={emphasis * (night ? 0.5 : 0.35)}
+                          stroke={color}
+                          strokeWidth={2}
+                          strokeOpacity={night ? 0.86 : 0.72}
                           strokeLinecap="round"
-                        />
+                          style={{ animationDelay: `${Math.min(index * 75, 900)}ms` }}
+                        >
+                          <title>{link.why}</title>
+                        </path>
                       );
                     })}
                   </g>
@@ -1277,6 +1316,12 @@ export const Ripple: React.FC<RippleProps> = ({
                         onClick={() => choose({ kind: 'person', id })}
                       >
                         {isFocus && <circle cx={p.x} cy={p.y} r={dotR + 7} fill={dotColor} opacity={0.22} />}
+                        {!isFocus && relationsVisible && person && related.people.has(id) && (
+                          <circle cx={p.x} cy={p.y} r={dotR + 5} fill="none" stroke={dotColor} strokeWidth={2} opacity={0.85} />
+                        )}
+                        {isFocus && relationsVisible && !reduceMotion && (
+                          <circle key={`pulse-${id}-${relationPulse}`} className="ripple-relation-wave" cx={p.x} cy={p.y} r={dotR + 5} fill="none" stroke={dotColor} strokeWidth={3} />
+                        )}
                         <circle cx={p.x} cy={p.y} r={dotR} fill={dotColor} />
                         {music && <circle cx={p.x} cy={p.y} r={3.2} fill="#fff" />}
                         <title>{`${fullName(personData[id])} · ${personData[id].job}`}</title>
@@ -1518,7 +1563,15 @@ export const Ripple: React.FC<RippleProps> = ({
 
         {/* ===== Zone 3 · Panneau d'Information Haute Lisibilité ===== */}
         <aside className="w-full max-w-[520px] mx-auto xl:mx-0 space-y-6">
-          <ActionPanel engine={engine} />
+          {track && (
+            <AudioPreview key={track.id} track={track} onLevel={onAudioLevel} />
+          )}
+          <details className="ripple-regie-details group rounded-[16px] border p-3" style={{ borderColor: 'var(--ripple-line, rgba(0,0,0,0.1))', background: 'var(--ripple-surface, #fff)' }}>
+            <summary className="cursor-pointer select-none px-2 py-2 text-[13px] font-bold" style={{ color: INK }}>
+              Régie & conséquences <span className="font-normal" style={{ color: MUTED }}>· démonstration · ouvrir</span>
+            </summary>
+            <div className="mt-3"><ActionPanel engine={engine} /></div>
+          </details>
 
           <SelectionDetail
             focus={focus}

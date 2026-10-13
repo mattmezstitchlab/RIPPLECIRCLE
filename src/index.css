@@ -963,3 +963,23 @@ input[type="range"].ios-slider {
     animation: none;
   }
 }
+
+
+/* V2 — liens contextuels : pas de toile d'araignée permanente. */
+@keyframes rippleRelationFlow {
+  from { stroke-dashoffset: 32; }
+  to { stroke-dashoffset: 0; }
+}
+.ripple-relation-link {
+  stroke-dasharray: 5 3;
+  animation: rippleRelationFlow 1.15s ease-out both;
+}
+@keyframes rippleRelationWave {
+  from { opacity: 0.9; stroke-width: 2; }
+  to { opacity: 0; stroke-width: 12; }
+}
+.ripple-relation-wave { animation: rippleRelationWave 0.9s ease-out forwards; }
+.ripple-regie-details > summary { list-style-position: inside; }
+@media (prefers-reduced-motion: reduce) {
+  .ripple-relation-link, .ripple-relation-wave { animation: none !important; }
+}
