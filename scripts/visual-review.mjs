@@ -62,7 +62,7 @@ try {
       const all = s => [...document.querySelectorAll(s)];
       const dial = r(q('[role="application"]'));
       const inspector = r(q('.ripple-inspector'));
-      const cause = r(q('.ripple-causal-brief'));
+      const cause = r(q('.ripple-context-panel'));
       const stage = r(q('.ripple-stage'));
       return {
         viewport: { width: innerWidth, height: innerHeight },
@@ -87,6 +87,24 @@ try {
     if (result.navButtons.some(n => n.rect.x < -3 || n.rect.right > size.width + 3)) findings.push({ size: size.id, kind: 'orbit-control-clipped' });
     if (result.headerAccountCount !== 1) findings.push({ size: size.id, kind: 'header-controls', count: result.headerAccountCount });
     if (size.width >= 1280 && result.dial && result.inspector && result.dial.right > result.inspector.x + 1) findings.push({ size: size.id, kind: 'dial-inspector-overlap' });
+
+    // Réelle interaction utilisateur : trois fonctions de démonstration, pas des CTA inertes.
+    const hero = page.locator('.ripple-public-hero');
+    if (await hero.count() !== 1) findings.push({size:size.id,kind:'hero-missing'});
+    await hero.getByRole('button', { name: 'Simuler un imprévu' }).click();
+    await page.locator('.ripple-demo-explorer').waitFor();
+    if (!await page.getByText('00:10', { exact: true }).count()) findings.push({size:size.id,kind:'scenario-10-failed'});
+    await page.getByRole('button', { name: '+18 min', exact: true }).click();
+    if (!await page.getByText('00:18', { exact: true }).count()) findings.push({size:size.id,kind:'scenario-18-failed'});
+    await hero.getByRole('button',{name:'Réparer le planning'}).click();
+    if (await page.locator('.ripple-repair-option').count() !== 3) findings.push({size:size.id,kind:'repair-options-missing'});
+    await page.screenshot({ path: OUTPUT + '/' + size.id + '-repair.png', fullPage: true, animations: 'disabled', timeout: 15000 });
+    await page.locator('.ripple-repair-option').first().click();
+    if (!await page.getByText(/Plan sélectionné dans la simulation/).count()) findings.push({size:size.id,kind:'repair-selection-failed'});
+    await hero.getByRole('button',{name:'Trouver la première cause'}).click();
+    if (await page.locator('.ripple-root-chain li').count() !== 5) findings.push({size:size.id,kind:'root-chain-missing'});
+    await hero.getByRole('button',{name:'Fermer'}).click();
+    if (await page.locator('.ripple-demo-explorer').count()) findings.push({size:size.id,kind:'close-simulation-failed'});
     const nav = page.getByRole('button', { name: 'Musique' });
     await nav.click();
     if (!page.url().includes('#playlist')) findings.push({ size: size.id, kind: 'navigation-failed' });
@@ -107,7 +125,7 @@ try {
   }
   await writeFile(OUTPUT + '/findings.json', JSON.stringify({ findings }, null, 2));
   console.log('VISUAL_FINDINGS ' + JSON.stringify(findings));
-  if (findings.some(x => ['console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed'].includes(x.kind))) {
+  if (findings.some(x => ['console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed'].includes(x.kind))) {
     process.exitCode = 1;
   }
 } finally {

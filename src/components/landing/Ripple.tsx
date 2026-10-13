@@ -39,7 +39,10 @@ import { DocSheet } from './DocSheet';
 import { ActionPanel } from './ActionPanel';
 import { AudioPreview } from './AudioPreview';
 import { ClockDial } from './ClockDial';
-import { CausalBrief } from './CausalBrief';
+import { InstantInspector } from './InstantInspector';
+import { PublicIncidentDemo } from './PublicIncidentDemo';
+import { type PublicMode, type RepairId } from '../../utils/publicSimulation';
+import { angleAtMinute, minuteAtAngle, momentAt, causalDemoLinks, rolesForPublicIncident, shouldShowPublicCascade, START_MINUTE, END_MINUTE } from '../../utils/publicTimeline';
 import { Scene } from '../../data/orchestra';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { useReactiveOrchestra } from '../../engine/orchestra/useReactiveOrchestra';
@@ -249,6 +252,12 @@ export const Ripple: React.FC<RippleProps> = ({
   const [angle, setAngle] = useState(ANGLE[ORDER[0]]);
   const [turning, setTurning] = useState(false);
   const [focus, setFocus] = useState<Focus>({ kind: 'moment', id: 'd7' });
+  const [exploreMinute, setExploreMinute] = useState(timeToMinutesFrom17('21:08'));
+  const [followDemo, setFollowDemo] = useState(false);
+  const draggingTime = useRef(false);
+  const [publicMode, setPublicMode] = useState<PublicMode>('observe');
+  const [publicDelay, setPublicDelay] = useState(10);
+  const [publicPlan, setPublicPlan] = useState<RepairId | null>(null);
 
   // Per-instance unique id for SVG clipPaths (avoids collisions if multiple Ripple instances mount).
   const instanceId = useRef(`r${Math.random().toString(36).slice(2, 8)}`);
@@ -299,7 +308,6 @@ export const Ripple: React.FC<RippleProps> = ({
 
   // Zoom & Pan state
   const [relationsVisible, setRelationsVisible] = useState(true);
-  const [showIncidentDetails, setShowIncidentDetails] = useState(false);
   const [relationPulse, setRelationPulse] = useState(0);
   const audioPulseRef = useRef<SVGCircleElement | null>(null);
   const onAudioLevel = useCallback((level: number) => {
@@ -327,8 +335,10 @@ export const Ripple: React.FC<RippleProps> = ({
   // Reactive orchestration engine (Phase 1 vertical slice — local, demo).
   const engine = useReactiveOrchestra();
   const memories = useMemo(() => MEMORIES.map((m) => ({ ...m, t: timeToMinutesFrom17(m.at) })), []);
-  const nowTrack = tracks.find((t) => minutes >= t.start && minutes < t.end) ?? null;
-  const nextSignal = tracks.find((t) => t.signal && t.start > minutes) ?? null;
+  const nowTrack = tracks.find((t) => exploreMinute >= t.start && exploreMinute < t.end) ?? null;
+  const nextSignal = tracks.find((t) => t.signal && t.start > exploreMinute) ?? null;
+  const activeMoment = momentAt(exploreMinute);
+  const publicCascadeActive = shouldShowPublicCascade(exploreMinute);
   const live = !paused && !manual;
 
   // L'identité du compte est la source de vérité du profil sélectionné dans le graphe.
@@ -350,6 +360,11 @@ export const Ripple: React.FC<RippleProps> = ({
       }
     };
   }, [account]);
+
+  const impactedPeopleIds = publicCascadeActive
+    ? rolesForPublicIncident().flatMap(role =>
+        ORDER.filter(id => dayRoleOf(personData[id]) === role).slice(0, role === 'invite' ? 2 : 1))
+    : [];
 
   const personPhoto = (id: string) => id === account.profileId && account.avatarUrl ? account.avatarUrl : guestPhoto(id);
   const publicJourney = account.journey.filter((milestone) => milestone.shared);
@@ -389,20 +404,24 @@ export const Ripple: React.FC<RippleProps> = ({
     return () => mq.removeEventListener('change', apply);
   }, []);
 
+  useEffect(() => {
+    if (followDemo) {
+      setExploreMinute(minutes);
+      setFocus({ kind: 'moment', id: momentAt(minutes).id });
+    }
+  }, [minutes, followDemo]);
+
   // Layer change focus synchronization
   useEffect(() => {
     setTurning(false);
     if (activeLayer === 'people') {
       setFocus((f) => (f.kind === 'person' ? f : { kind: 'person', id: account.profileId }));
-      if (activeLayer === 'people' && !reduceMotion) setTurning(true);
     } else if (activeLayer === 'calendar') setFocus({ kind: 'day', doy: DAY_J_DOY });
     else if (activeLayer === 'journey') {
       const first = publicJourney[0];
       setFocus(first ? { kind: 'journey', id: first.id } : { kind: 'person', id: account.profileId });
     } else if (activeLayer === 'day') {
-      let cur = DAY_MOMENTS[0].id;
-      DAY_MOMENTS.forEach((m) => timeToMinutesFrom17(m.at) <= minutes && (cur = m.id));
-      setFocus({ kind: 'moment', id: cur });
+      setFocus({ kind: 'moment', id: momentAt(exploreMinute).id });
     } else if (activeLayer === 'memory') setFocus({ kind: 'memory', id: memories[0].id });
     else if (activeLayer === 'playlist') setFocus({ kind: 'track', id: (nowTrack ?? tracks[0]).id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -428,6 +447,14 @@ export const Ripple: React.FC<RippleProps> = ({
     if (turning) setFocus((f) => (f.kind === 'person' && f.id === needlePerson ? f : { kind: 'person', id: needlePerson }));
   }, [needlePerson, turning]);
 
+  const chooseInstant = (value: number) => {
+    const minute = Math.max(START_MINUTE, Math.min(END_MINUTE, Math.round(value)));
+    setFollowDemo(false);
+    setTurning(false);
+    setExploreMinute(minute);
+    setFocus({ kind: 'moment', id: momentAt(minute).id });
+  };
+
   const choose = (f: Focus) => {
     sfx.playNodeClick();
     setTurning(false);
@@ -435,6 +462,15 @@ export const Ripple: React.FC<RippleProps> = ({
     if (f.kind === 'person') {
       setAngle(ANGLE[f.id]);
       setRelationPulse((n) => n + 1);
+    } else if (f.kind === 'moment') {
+      const selected = DAY_MOMENTS.find(m => m.id === f.id);
+      if (selected) { setFollowDemo(false); setExploreMinute(timeToMinutesFrom17(selected.at)); }
+    } else if (f.kind === 'track') {
+      const selected = tracks.find(t => t.id === f.id);
+      if (selected) { setFollowDemo(false); setExploreMinute(selected.start); }
+    } else if (f.kind === 'memory') {
+      const selected = memories.find(m => m.id === f.id);
+      if (selected) { setFollowDemo(false); setExploreMinute(selected.t); }
     }
   };
 
@@ -510,7 +546,7 @@ export const Ripple: React.FC<RippleProps> = ({
   const show = (layer: Exclude<RippleLayer, 'overview'>) => {
     // Dos du cercle : uniquement les photos des convives, tout le reste disparaît
     if (isBack) return layer === 'people';
-    return compact ? layer === activeLayer || (overview && (layer === 'people' || layer === 'playlist')) : true;
+    return compact ? layer === activeLayer || ((overview || activeLayer === 'playlist') && (layer === 'people' || layer === 'playlist' || layer === 'day')) : true;
   };
   const emphasis = (_layer: Exclude<RippleLayer, 'overview'>) => 1;
   const interactive = (layer: Exclude<RippleLayer, 'overview'>) => overview || layer === activeLayer;
@@ -562,7 +598,9 @@ export const Ripple: React.FC<RippleProps> = ({
   const stepFocus = (dir: 1 | -1) => {
     sfx.playBlip(dir > 0 ? 980 : 820, 0.02);
     setTurning(false);
-    if (activeLayer === 'calendar') {
+    if (activeLayer === 'overview' || activeLayer === 'day') {
+      chooseInstant(exploreMinute + dir * 5);
+    } else if (activeLayer === 'calendar') {
       const idx = CAL_MARKERS.findIndex((m) => focus.kind === 'day' && DAY_J_DOY + m.offset === focus.doy);
       const next = CAL_MARKERS[(idx + dir + CAL_MARKERS.length) % CAL_MARKERS.length];
       setFocus({ kind: 'day', doy: DAY_J_DOY + next.offset });
@@ -570,9 +608,6 @@ export const Ripple: React.FC<RippleProps> = ({
       const idx = publicJourney.findIndex((m) => focus.kind === 'journey' && m.id === focus.id);
       const next = publicJourney[(Math.max(idx, 0) + dir + publicJourney.length) % publicJourney.length];
       if (next) setFocus({ kind: 'journey', id: next.id });
-    } else if (activeLayer === 'day') {
-      const idx = DAY_MOMENTS.findIndex((m) => focus.kind === 'moment' && m.id === focus.id);
-      setFocus({ kind: 'moment', id: DAY_MOMENTS[(Math.max(idx, 0) + dir + DAY_MOMENTS.length) % DAY_MOMENTS.length].id });
     } else if (activeLayer === 'memory') {
       const idx = memories.findIndex((m) => focus.kind === 'memory' && m.id === focus.id);
       setFocus({ kind: 'memory', id: memories[(Math.max(idx, 0) + dir + memories.length) % memories.length].id });
@@ -589,7 +624,8 @@ export const Ripple: React.FC<RippleProps> = ({
 
   /* -------------------------------- Rendu -------------------------------- */
 
-  const nowAngle = timeAngle(minutes);
+  const nowAngle = angleAtMinute(exploreMinute);
+  const causalHighlight = publicMode !== 'observe' || publicCascadeActive;
   const person = focus.kind === 'person' ? personData[focus.id] : null;
   const moment = focus.kind === 'moment' ? DAY_MOMENTS.find((m) => m.id === focus.id) ?? null : null;
   const track = focus.kind === 'track' ? tracks.find((t) => t.id === focus.id) ?? null : null;
@@ -598,9 +634,43 @@ export const Ripple: React.FC<RippleProps> = ({
   const journeySel = focus.kind === 'journey' ? journeyMilestone(focus.id) : null;
   const personLinks = person ? relationLinks.filter((l) => l.a === person.id || l.b === person.id) : [];
   const scrubValue = Math.max(ORCH_START, Math.min(ORCH_END, minutes));
+  const focusTitle = person ? fullName(person) : moment ? moment.title : track ? track.title
+    : media ? media.legend : journeySel ? journeySel.title : dayFocus !== null
+      ? new Date(YEAR,0,dayFocus+1).toLocaleDateString('fr-FR',{ day:'numeric',month:'long' })
+      : activeMoment.title;
+  const activePeople = [...new Set(activeMoment.roles
+    .map(role => ORDER.find(id => dayRoleOf(personData[id]) === role))
+    .filter((id): id is string => Boolean(id)))].map(id => personData[id].first);
 
   return (
     <main className="max-w-[1680px] mx-auto px-4 sm:px-6 pt-3 pb-5">
+      <div className="ripple-public-hero" aria-label="Explorer un imprévu fictif">
+        <div className="ripple-public-hero-copy">
+          <p className="ripple-public-kicker">RIPPLECIRCLE · Démonstration</p>
+          <h1>Quand un détail change, voyez tout ce qu’il entraîne.</h1>
+          <p>Simulez les effets, remontez une chaîne explicative et comparez des plans B sur un mariage fictif.</p>
+        </div>
+        <div className="ripple-public-hero-actions" role="group" aria-label="Actions de démonstration">
+          {([
+            { id:'simulate', label:'Simuler un imprévu' },
+            { id:'trace', label:'Trouver la première cause' },
+            { id:'repair', label:'Réparer le planning' }
+          ] as const).map(action => (
+            <button type="button" key={action.id} className="ripple-hero-cta"
+              aria-pressed={publicMode === action.id}
+              onClick={() => {
+                setPublicMode(action.id);
+                setFollowDemo(false);
+                setTurning(false);
+                setExploreMinute(timeToMinutesFrom17('21:08'));
+                setFocus({ kind:'moment',id:'d7' });
+                setPublicPlan(null);
+              }}>{action.label}</button>
+          ))}
+          {publicMode!=='observe' && <button type="button" className="ripple-hero-reset"
+            onClick={() => {setPublicMode('observe');setPublicPlan(null);}}>Fermer</button>}
+        </div>
+      </div>
       {/* Un instrument central : les vues se choisissent autour du cadran. */}
       <div className="ripple-stage">
         <div className="ripple-watch-column">
@@ -667,6 +737,13 @@ export const Ripple: React.FC<RippleProps> = ({
             onPointerDown={(e) => {
               const p = angleFromEvent(e);
               if (!p) return;
+              if (!isBack && p.d >= R.hours - 18 && p.d <= R.hours + 18) {
+                e.preventDefault();
+                draggingTime.current = true;
+                (e.target as Element).setPointerCapture?.(e.pointerId);
+                chooseInstant(minuteAtAngle(p.a));
+                return;
+              }
               // If zoomed in and touching background, enable Pan
               if (zoom > 1.05 && (p.d > R.calOuter + 30 || p.d < R.ring0 - 40)) {
                 panning.current = true;
@@ -705,6 +782,11 @@ export const Ripple: React.FC<RippleProps> = ({
               }
             }}
             onPointerMove={(e) => {
+              if (draggingTime.current) {
+                const p = angleFromEvent(e);
+                if (p) chooseInstant(minuteAtAngle(p.a));
+                return;
+              }
               if (panning.current) {
                 const dx = (e.clientX - panStart.current.x) * ((SIZE + 60) / zoom / 600);
                 const dy = (e.clientY - panStart.current.y) * ((SIZE + 60) / zoom / 600);
@@ -722,6 +804,7 @@ export const Ripple: React.FC<RippleProps> = ({
               }
             }}
             onPointerUp={() => {
+              draggingTime.current = false;
               if (panning.current) panning.current = false;
               if (draggingNeedle.current) {
                 draggingNeedle.current = false;
@@ -730,6 +813,7 @@ export const Ripple: React.FC<RippleProps> = ({
               }
             }}
             onPointerCancel={() => {
+              draggingTime.current = false;
               panning.current = false;
               draggingNeedle.current = false;
             }}
@@ -916,6 +1000,7 @@ export const Ripple: React.FC<RippleProps> = ({
                   const next = DAY_MOMENTS[i + 1];
                   const a1 = next ? timeAngle(timeToMinutesFrom17(next.at)) : 360;
                   const on = related.momentsOn.has(m.id);
+                  const inPath = causalHighlight && ['d7','d9','d10','d14','d15'].includes(m.id);
                   const p = polar(R.day, a0);
                   const nodeR = (m.cle || m.retard ? 8.5 : 5.5) * fontMult;
                   return (
@@ -929,9 +1014,11 @@ export const Ripple: React.FC<RippleProps> = ({
                         d={arcPath(R.day, a0 + 0.6, a1 - 0.6)}
                         fill="none"
                         stroke={m.retard ? '#FF453A' : m.cle ? INK : '#b0b0b5'}
-                        strokeWidth={on ? 9 : 5}
+                        strokeWidth={inPath ? 11 : on ? 9 : 5}
                         strokeLinecap="round"
                       />
+                      {inPath && <circle cx={p.x} cy={p.y} r={nodeR+11} fill="none"
+                        stroke={m.id === 'd7' ? '#FF9F0A' : '#FF453A'} strokeWidth={2} className="ripple-causal-node" />}
                       <circle
                         cx={p.x}
                         cy={p.y}
@@ -1174,6 +1261,7 @@ export const Ripple: React.FC<RippleProps> = ({
                   const p = polar(R.people, ANGLE[id]);
                   const isFocus = person?.id === id;
                   const music = nowTrack?.by === id;
+                  const impacted = causalHighlight && impactedPeopleIds.includes(id);
                   const dotColor = GROUP_ARC.find((g) => g.id === TABLE_OF[id]?.id)?.color ?? INK;
                   if (!isBack) {
                     const dotR = isFocus ? 14 : 9;
@@ -1185,6 +1273,8 @@ export const Ripple: React.FC<RippleProps> = ({
                         onClick={() => choose({ kind: 'person', id })}
                       >
                         {isFocus && <circle cx={p.x} cy={p.y} r={dotR + 7} fill={dotColor} opacity={0.22} />}
+                        {impacted && <circle cx={p.x} cy={p.y} r={dotR+6} fill="none" stroke="#FF9F0A"
+                          strokeDasharray="3 2" strokeWidth={2} className="ripple-causal-person" />}
                         {!isFocus && relationsVisible && person && related.people.has(id) && (
                           <circle cx={p.x} cy={p.y} r={dotR + 5} fill="none" stroke={dotColor} strokeWidth={2} opacity={0.85} />
                         )}
@@ -1257,7 +1347,29 @@ export const Ripple: React.FC<RippleProps> = ({
                 )}
               </g>
             )}
-          {!isBack && <ClockDial minutes={minutes} night={night} />}
+          {!isBack && causalHighlight && show('day') && (
+            <g data-testid="public-causal-paths" pointerEvents="none">
+              {causalDemoLinks().map((link,i)=>{
+                const a=timeAngle(link.sourceMinute);
+                const b=timeAngle(link.targetMinute);
+                const p1=polar(R.day-16,a);
+                const p2=polar(R.day-16,b);
+                const mid=polar(R.day-66,(a+b)/2);
+                return <path key={link.target}
+                  d={`M ${p1.x} ${p1.y} Q ${mid.x} ${mid.y} ${p2.x} ${p2.y}`}
+                  fill="none" stroke={i===0?'#FF9F0A':'#FF453A'} strokeWidth={2.2} strokeDasharray="5 5"
+                  className="ripple-causal-path" style={{animationDelay:`${i*140}ms`}}/>;
+              })}
+            </g>
+          )}
+          {!isBack && (
+            <circle cx={C} cy={C} r={R.hours} fill="none" stroke="transparent" strokeWidth={30}
+              className="ripple-time-scrub-hit" data-testid="timeline-scrub-ring"
+              style={{touchAction:'none',cursor:'crosshair'}}>
+              <title>Glissez pour explorer les instants de 15 h à 5 h</title>
+            </circle>
+          )}
+          {!isBack && <ClockDial minutes={exploreMinute} night={night} />}
           </svg>
 
           {/* ---------- Vue photo, uniquement sur la face B ---------- */}
@@ -1441,77 +1553,70 @@ export const Ripple: React.FC<RippleProps> = ({
         </div>
         </div>
 
-        {/* ===== Colonne à lecture immédiate ===== */}
+        {/* Une seule colonne : le contexte visible et les outils avancés repliés. */}
         <aside className="ripple-inspector" aria-label="Comprendre et agir">
-          <CausalBrief
-            incident={moment?.cause ? moment : DAY_MOMENTS.find(m => m.cause) ?? DAY_MOMENTS[0]}
-            onSelect={() => {
-              setShowIncidentDetails(true);
-              choose({ kind: 'moment', id: DAY_MOMENTS.find(m => m.cause)?.id ?? DAY_MOMENTS[0].id });
+          <InstantInspector
+            minute={exploreMinute} selectedKind={focus.kind} selectedTitle={focusTitle}
+            moment={activeMoment} people={activePeople}
+            playingTitle={nowTrack?.title ?? null} following={followDemo}
+            onMinute={chooseInstant}
+            onFollow={() => {
+              if (followDemo) setFollowDemo(false);
+              else {
+                setFollowDemo(true);
+                setExploreMinute(minutes);
+                setFocus({kind:'moment',id:momentAt(minutes).id});
+              }
             }}
-          />
-          {!(activeLayer === 'overview' && moment?.cause && !showIncidentDetails) && (
-            <SelectionDetail
-              focus={focus}
-              account={account}
-              person={person}
-              moment={moment}
-              track={track}
-              media={media}
-              dayFocus={dayFocus}
-              journeySel={journeySel}
-              personLinks={personLinks}
-              turning={turning}
-              onToggleTurn={() => {
-                sfx.playNodeClick();
-                if (!turning) setFocus({ kind: 'person', id: nearestPerson(angle) });
-                setTurning(p => !p);
-              }}
-              choose={choose}
-              onScrub={onScrub}
-              momentStates={engine.moments}
-            />
-          )}
-          {track && <AudioPreview key={track.id} track={track} onLevel={onAudioLevel} />}
-
-          <details className="ripple-inspector-fold">
-            <summary>Temps & signaux <span>Conducteur 15:00 → 05:00</span></summary>
-            <div className="p-3 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-bold text-[18px] tabular-nums">{fmt(minutes)}</span>
-                <button type="button" onClick={() => manual ? onResume() : onToggle()} className="ripple-action-small">
-                  {live ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                  {manual ? 'Reprendre' : paused ? 'Play' : 'Pause'}
-                </button>
+            onMoment={id=>choose({kind:'moment',id})}
+          >
+            <PublicIncidentDemo mode={publicMode} delay={publicDelay} selectedPlan={publicPlan}
+              onDelay={setPublicDelay} onMode={setPublicMode} onSelectPlan={setPublicPlan}/>
+            {track && <AudioPreview key={track.id} track={track} onLevel={onAudioLevel}/>}
+            <details className="ripple-context-fold">
+              <summary>Fiche complète de la sélection</summary>
+              <SelectionDetail focus={focus} account={account} person={person} moment={moment}
+                track={track} media={media} dayFocus={dayFocus} journeySel={journeySel}
+                personLinks={personLinks} turning={turning}
+                onToggleTurn={()=>{
+                  sfx.playNodeClick();
+                  if(!turning) setFocus({kind:'person',id:nearestPerson(angle)});
+                  setTurning(v=>!v);
+                }}
+                choose={choose} onScrub={onScrub} momentStates={engine.moments}/>
+            </details>
+            <details className="ripple-context-fold">
+              <summary>Régie simulée · commandes</summary>
+              <div className="p-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-[17px] tabular-nums">{fmt(minutes)}</span>
+                  <button type="button" onClick={()=>manual?onResume():onToggle()} className="ripple-action-small">
+                    {live?<Pause className="w-3.5 h-3.5"/>:<Play className="w-3.5 h-3.5"/>}
+                    {manual?'Reprendre':paused?'Play':'Pause'}
+                  </button>
+                </div>
+                <input aria-label="Temps de régie fictif de 21:00 à 21:56" type="range"
+                  min={ORCH_START} max={ORCH_END} step={1} value={scrubValue}
+                  onChange={e=>onScrub(Number(e.target.value))} className="ios-slider w-full"/>
+                <p className="text-[12px] opacity-75">La régie est indépendante de la chronologie libre sur 14 h.</p>
+                {scene&&<p className="text-[12px] opacity-75">{scene.headline} · marge +{slack} min · stabilité {stability} %</p>}
+                {nextSignal?.signal&&<p className="text-[12px]">Prochain signal : {nextSignal.signal.label}</p>}
               </div>
-              <input aria-label="Temps de régie simulé, de 21:00 à 21:56" type="range" min={ORCH_START} max={ORCH_END} step={1} value={scrubValue} onChange={e => onScrub(Number(e.target.value))} className="ios-slider w-full" />
-              <p className="text-[12px] opacity-75">Aiguille rouge : programme du jour J, dans le sens horaire. Deux aiguilles centrales : horloge classique 12 h.</p>
-              {nowTrack && <p className="text-[12px]">♪ {nowTrack.title} · {SETS[nowTrack.set].label}</p>}
-              {nextSignal?.signal && <p className="text-[12px]">Signal suivant : {nextSignal.signal.label} · {fmt(nextSignal.start)}</p>}
-              {scene && <p className="text-[12px] opacity-75">{scene.headline} · marge +{slack} min · stabilité {stability} %</p>}
-            </div>
-          </details>
-          <details className="ripple-inspector-fold">
-            <summary>Actions & décisions <span>Scénario d'orchestration</span></summary>
-            <div className="p-2"><ActionPanel engine={engine} /></div>
-          </details>
-          <details className="ripple-inspector-fold">
-            <summary>Explorer les éléments <span>Liste de la couche active</span></summary>
-            <div className="p-2">
-              <LayerList
-                activeLayer={activeLayer}
-                focus={focus}
-                account={account}
-                journey={publicJourney}
-                tracks={tracks}
-                memories={memories}
-                nowTrackId={nowTrack?.id ?? null}
-                minutes={minutes}
-                choose={choose}
-              />
-            </div>
-          </details>
-                </aside>
+            </details>
+            <details className="ripple-context-fold">
+              <summary>Décisions de la régie · simulation</summary>
+              <div className="p-2"><ActionPanel engine={engine}/></div>
+            </details>
+            <details className="ripple-context-fold">
+              <summary>Explorer les éléments de cette couche</summary>
+              <div className="p-2">
+                <LayerList activeLayer={activeLayer} focus={focus} account={account}
+                  journey={publicJourney} tracks={tracks} memories={memories}
+                  nowTrackId={nowTrack?.id??null} minutes={exploreMinute} choose={choose}/>
+              </div>
+            </details>
+          </InstantInspector>
+        </aside>
       </div>
 
       <p className="ripple-demo-footnote">Démonstration fictive · {NET_GUESTS.length + TEAM_GROUP.guests.length} profils enregistrés localement · aucune synchronisation réelle</p>
