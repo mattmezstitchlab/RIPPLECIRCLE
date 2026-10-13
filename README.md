@@ -63,3 +63,13 @@ Le cadran est maintenant piloté par l’instant exploré de 15:00 à 05:00, via
 Trois boutons principaux donnent accès à une **démonstration déterministe distincte du moteur confidentiel** : Simuler un imprévu, Trouver la première cause, Réparer le planning. Le retard fictif génère quatre décalages horaires dérivés de la chronologie statique, et trois plans fictifs classés sur un score explicite (retard restant, coût fictif et acteurs). Ces règles sont publiques, ne constituent pas un solveur de contraintes général, ne découvrent aucune causalité et ne déclenchent aucune action ni notification. Les liens cause-effet sont illustratifs et nommés comme tels.
 
 Le noyau causal expérimental privé est **absent de ce dépôt**. Les actions et les données du simulateur public sont entièrement fictives.
+
+
+## V4 — conséquences indirectes, actions, rejeu (public fictif)
+
+Trois commandes compactes dans l'inspecteur ouvrent :
+- **Impacts cachés** : parcours d'un petit graphe de huit dépendances fictives, avec profondeur et distinction entre lien du programme et hypothèse à vérifier (photos, lumière, transport, logistique).
+- **Répartir les actions** : consignes brouillon par rôle dérivées du plan V3 sélectionné (ou du plan recommandé pour l’exemple). L’utilisateur peut marquer des consignes préparées **uniquement dans la session du navigateur** et copier le texte. Aucune transmission, adresse, intégration, sauvegarde ou notification.
+- **Rejouer** : chronologie scénarisée avec lecteur manuel, progression, choix d'instants et comparaison référence / sans plan / option sélectionnée. Aucun journal réel ou preuve de résultat historique.
+
+Ces capacités reposent exclusivement sur les modèles statiques publics `publicSimulation.ts` et `publicAftermath.ts`. Ce n'est ni un solveur général, ni une détection d’événement réel ; le **noyau causal confidentiel n’est pas présent dans ce dépôt**.
