@@ -270,6 +270,15 @@ export const DocSheet: React.FC<DocSheetProps> = ({ doc, role, onClose }) => {
   const st = signed[doc.id] ? 'signé' : doc.status;
   const ck = (id: string, i: number) => `${id}:${i}`;
 
+  // Escape key closes the sheet.
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-6"
