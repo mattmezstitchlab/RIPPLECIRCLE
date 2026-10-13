@@ -13,7 +13,7 @@ const sizes = [
   { id: 'mobile-360', width: 360, height: 740 }
 ];
 await mkdir(OUTPUT, { recursive: true });
-const server = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
   stdio: 'pipe', env: { ...process.env, BROWSER: 'none' }
 });
 server.stdout.on('data', (b) => process.stdout.write('vite: ' + String(b)));
