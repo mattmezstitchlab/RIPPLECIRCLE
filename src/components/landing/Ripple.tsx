@@ -1365,16 +1365,15 @@ export const Ripple: React.FC<RippleProps> = ({
           <span className="ripple-v7-dock-status" role="status" aria-live="polite">
             {frameMode === 'quarter' ? frameGeometry(frameMode, frameSectorAngle).quarter : FRAME_DESCRIPTIONS[frameMode]}
           </span>
+          <button type="button" className="ripple-circle-control ripple-v7-zoom" aria-label="Dézoomer" disabled={zoom <= ZOOM_MIN} onClick={() => handleZoom(-ZOOM_STEP)}><ZoomOut className="w-4 h-4"/></button>
+          <button type="button" className="ripple-circle-control ripple-v7-zoom" aria-label="Zoomer" disabled={zoom >= ZOOM_MAX} onClick={() => handleZoom(ZOOM_STEP)}><ZoomIn className="w-4 h-4"/></button>
           <details className="ripple-v6-watch-settings ripple-v7-dock-menu">
             <summary aria-label="Ouvrir les réglages du cadran"><SlidersHorizontal className="w-4 h-4"/> Réglages</summary>
             <div className="ripple-watch-controls" role="toolbar" aria-label="Commandes du cadran">
           <button type="button" className="ripple-circle-control" aria-pressed={relationsVisible} aria-label={relationsVisible ? 'Masquer les relations' : 'Afficher les relations'} title="Connexions" onClick={() => setRelationsVisible(v => !v)}>
             <Network className="w-4 h-4" />
           </button>
-          <span className="ripple-controls-divider" aria-hidden="true" />
-          <button type="button" className="ripple-circle-control" aria-label="Dézoomer" disabled={zoom <= ZOOM_MIN} onClick={() => handleZoom(-ZOOM_STEP)}><ZoomOut className="w-4 h-4" /></button>
-          <span className="text-[11px] font-bold tabular-nums w-11 text-center" style={{ color: INK }}>{Math.round(zoom * 100)}%</span>
-          <button type="button" className="ripple-circle-control" aria-label="Zoomer" disabled={zoom >= ZOOM_MAX} onClick={() => handleZoom(ZOOM_STEP)}><ZoomIn className="w-4 h-4" /></button>
+          <span className="ripple-v7-popup-zoom" aria-label="Niveau de zoom">{Math.round(zoom * 100)} %</span>
           <button type="button" className="ripple-circle-control" aria-label="Recentrer le cadran" onClick={resetView}><RotateCcw className="w-4 h-4" /></button>
           <span className="ripple-controls-divider" aria-hidden="true" />
           <button type="button" className="ripple-circle-control" onClick={() => setAudioMuted(m => !m)} aria-label={audioMuted ? 'Activer les effets sonores' : 'Couper les effets sonores'} title="Effets sonores">
