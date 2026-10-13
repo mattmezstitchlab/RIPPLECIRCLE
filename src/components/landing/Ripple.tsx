@@ -216,7 +216,6 @@ type Focus =
 interface RippleProps {
   activeLayer: RippleLayer;
   account: AccountState;
-  theme: 'day' | 'night';
   minutes: number;
   paused: boolean;
   manual: boolean;
@@ -237,7 +236,6 @@ const Eyebrow: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 export const Ripple: React.FC<RippleProps> = ({
   activeLayer,
   account,
-  theme,
   minutes,
   paused,
   manual,
@@ -320,7 +318,6 @@ export const Ripple: React.FC<RippleProps> = ({
 
   const [zoom, setZoom] = useState<number>(1.0);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const night = theme === 'night';
   // Normal is the default and only text size. Zoom is spatial, not typographic.
   const fontMult = 1;
 
@@ -1213,7 +1210,7 @@ export const Ripple: React.FC<RippleProps> = ({
                           fill="none"
                           stroke={color}
                           strokeWidth={2}
-                          strokeOpacity={night ? 0.86 : 0.72}
+                          strokeOpacity={0.72}
                           strokeLinecap="round"
                           style={{ animationDelay: `${Math.min(index * 75, 900)}ms` }}
                         >
@@ -1230,7 +1227,7 @@ export const Ripple: React.FC<RippleProps> = ({
                   cy={C}
                   r={R.centerDisk}
                   fill="var(--ripple-surface, #ffffff)"
-                  stroke={night ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)'}
+                  stroke="rgba(0,0,0,0.08)"
                   strokeWidth={1.5}
                 />
 
@@ -1370,7 +1367,7 @@ export const Ripple: React.FC<RippleProps> = ({
               <title>Glissez pour explorer les instants de 15 h à 5 h</title>
             </circle>
           )}
-          {!isBack && <ClockDial minutes={exploreMinute} night={night} />}
+          {!isBack && <ClockDial minutes={exploreMinute} />}
           </svg>
 
           {/* ---------- Vue photo, uniquement sur la face B ---------- */}
