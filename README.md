@@ -12,7 +12,7 @@ RIPPLECIRCLE propose **un cercle interactif en SVG 2D**, organisé en anneaux. L
 - **Plan de tables** : personnes, groupes et relations.
 - **Compte** : profil et préférences.
 
-Le cercle conserve le zoom, le déplacement, la sélection d'éléments, les couleurs de couches, le thème clair unique, le recto/verso et les indicateurs d'orchestration.
+Le cercle conserve le zoom, le déplacement, la sélection d'éléments, les couleurs de couches, le thème clair unique, les portraits contextuels en colonne droite et les indicateurs d'orchestration.
 
 **Musique :** la playlist est un **conducteur temporel**, avec une couleur par séquence (cérémonie, cocktail, transition, dîner, soirée). Les effets sonores de l'interface sont produits via Web Audio et peuvent être coupés. **La lecture audio des enregistrements musicaux n'est pas encore implémentée** ; la présence d'un titre dans la playlist ne signifie pas que le morceau est diffusé.
 
@@ -86,3 +86,13 @@ L'espace Compte présente quatre sections : **Profil** (coordonnées et centres 
 - La réinitialisation replace **uniquement** le profil/RVSP/parcours par la démonstration et ne supprime pas les playlists ou préférences audio.
 - La préférence de partage des coordonnées est une intention enregistrée localement ; elle n'autorise aucune diffusion aux autres invités dans cette version.
 - La sélection d'une navette est un souhait local, pas une réservation effective.
+
+
+## V5 — cadran unique et portraits dans la colonne droite
+
+- Suppression du mode recto/verso, de son bouton et du raccourci clavier `F`.
+- Le cadran 2D et ses nœuds de personnes colorés restent interactifs. Aucun cercle de portraits ne recouvre désormais les anneaux temporels.
+- Les photos des personnes apparaissent à droite de leurs informations dans l’inspecteur (sélection, intervenants du moment, conséquences) et dans les fiches/listes détaillées.
+- Cliquer une vignette permet de sélectionner la personne correspondante dans le cadran sans changer de face.
+- Avatar avec initiales de secours en cas d'absence ou d’échec de chargement d’une photo externe.
+- Ce changement n’ajoute ni authentification ni partage réel de portraits ; les profils restent fictifs/localement modifiés.
