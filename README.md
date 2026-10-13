@@ -54,3 +54,12 @@ La **régie simulée** est rangée dans un panneau repliable. La lecture d'un ex
 - **Colonne causale prioritaire** : synthèse cause → conséquences → plan B visible sans parcourir les panneaux ; sélection d'une personne ou d'un moment = informations uniques à droite.
 - **Détails secondaires repliés** : temps de régie, simulateur d'actions, liste exhaustive ; aucune de ces vues n'est nécessaire pour comprendre le premier écran.
 - **Démo explicite** : horloge de régie et causalité sont simulées, pas un événement réel.
+
+
+## V3 — instrument temporel et scénarios publics
+
+Le cadran est maintenant piloté par l’instant exploré de 15:00 à 05:00, via le cercle ou le curseur de la colonne latérale. Les titres musicaux et moments suivent cet instant, sans lire automatiquement des enregistrements. Le mode « suivre la régie » relie volontairement les deux horloges simulées. Un seul inspecteur contextuel décrit l'instant; les fiches détaillées et commandes historiques sont repliées.
+
+Trois boutons principaux donnent accès à une **démonstration déterministe distincte du moteur confidentiel** : Simuler un imprévu, Trouver la première cause, Réparer le planning. Le retard fictif génère quatre décalages horaires dérivés de la chronologie statique, et trois plans fictifs classés sur un score explicite (retard restant, coût fictif et acteurs). Ces règles sont publiques, ne constituent pas un solveur de contraintes général, ne découvrent aucune causalité et ne déclenchent aucune action ni notification. Les liens cause-effet sont illustratifs et nommés comme tels.
+
+Le noyau causal expérimental privé est **absent de ce dépôt**. Les actions et les données du simulateur public sont entièrement fictives.
