@@ -102,7 +102,7 @@ try {
     if (await page.locator('.ripple-v6-watch-settings[open]').count())
       findings.push({size:size.id,kind:'v6-settings-open-at-rest'});
     await page.locator('.ripple-v6-watch-settings > summary').click();
-    await page.getByRole('button',{name:'Zoomer'}).click();
+    await page.getByRole('button',{name:'Zoomer',exact:true}).click();
     await page.getByRole('button',{name:'Recentrer le cadran'}).click();
     await page.locator('.ripple-v6-watch-settings > summary').click();
     await topbar.getByRole('button',{name:'Et si ?'}).click();
