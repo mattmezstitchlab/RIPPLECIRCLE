@@ -27,7 +27,7 @@ beforeEach(()=>{
   process.env.RIPPLE_LEGAL_SCRYPT=salt.toString('hex')+':'+scryptSync(password,salt,32).toString('hex');
   process.env.RIPPLE_LEGAL_SESSION_KEY=randomBytes(32).toString('hex');
   // A small synthetic gzip is enough to verify the archive download is gated.
-  process.env.RIPPLE_LEGAL_ARCHIVE_BASE64=gzipSync(Buffer.alloc(1500,0x61)).toString('base64');
+  process.env.RIPPLE_LEGAL_ARCHIVE_BASE64=gzipSync(randomBytes(1600)).toString('base64');
 });
 afterEach(()=>{
   for(const [k,v] of Object.entries(saved)){
