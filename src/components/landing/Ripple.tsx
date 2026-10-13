@@ -670,9 +670,10 @@ export const Ripple: React.FC<RippleProps> = ({
                   aria-label={item.label}
                   aria-current={selected ? 'page' : undefined}
                   title={item.label}
-                  onClick={() => {
+                  onClick={(e) => {
                     if (selected) return;
                     sfx.playNodeClick();
+                    e.currentTarget.closest('details')?.removeAttribute('open');
                     window.location.hash = item.hash;
                   }}
                   style={{ '--orbit-accent': item.color } as React.CSSProperties}
@@ -1354,11 +1355,15 @@ export const Ripple: React.FC<RippleProps> = ({
               }
             }}
             onMoment={id=>choose({kind:'moment',id})}
+            tools={
+              <>
+                <PublicIncidentDemo mode={publicMode} delay={publicDelay} selectedPlan={publicPlan}
+                  onDelay={setPublicDelay} onMode={setPublicMode} onSelectPlan={setPublicPlan}/>
+                <PublicAftermathDemo mode={publicMode} delay={publicDelay} selectedPlan={publicPlan}
+                  onMode={setPublicMode} onMinute={chooseInstant}/>
+              </>
+            }
           >
-            <PublicIncidentDemo mode={publicMode} delay={publicDelay} selectedPlan={publicPlan}
-              onDelay={setPublicDelay} onMode={setPublicMode} onSelectPlan={setPublicPlan}/>
-            <PublicAftermathDemo mode={publicMode} delay={publicDelay} selectedPlan={publicPlan}
-              onMode={setPublicMode} onMinute={chooseInstant}/>
             {track && <AudioPreview key={track.id} track={track} onLevel={onAudioLevel}/>}
             <details className="ripple-context-fold">
               <summary>Fiche complète de la sélection</summary>
