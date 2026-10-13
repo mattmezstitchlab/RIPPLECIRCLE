@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
 const PORT = 4175;
 const ROOT = 'http://127.0.0.1:' + PORT;
@@ -148,23 +148,74 @@ try {
     await nav.click();
     if (!page.url().includes('#playlist')) findings.push({ size: size.id, kind: 'navigation-failed' });
     await page.getByRole('button', { name: 'Compte', exact: true }).click();
-    if (!page.url().includes('#account')) findings.push({ size: size.id, kind: 'account-failed' });
+    if (!page.url().includes('#account')) findings.push({size:size.id,kind:'account-failed'});
+    if (await page.getByRole('button', { name:/Mode nuit|Affichage/i }).count())
+      findings.push({size:size.id,kind:'night-option-still-visible'});
+    const accountTabs=page.getByRole('navigation',{name:'Réglages du compte'}).getByRole('button');
+    if (await accountTabs.count()!==4) findings.push({size:size.id,kind:'account-tabs-invalid'});
+    const tabRects = await page.locator('.account-settings-tab').evaluateAll(items =>
+      items.map(el => ({ left:el.getBoundingClientRect().left, right:el.getBoundingClientRect().right })));
+    if (tabRects.some(r => r.left < -1 || r.right > size.width + 1))
+      findings.push({size:size.id,kind:'account-tabs-clipped'});
+    await page.getByLabel('Prénom').fill('Profil QA');
+    await page.getByRole('button', { name:'RSVP', exact:true }).click();
+    await page.getByRole('button', { name:'Je confirme bientôt' }).click();
+    if (await page.getByRole('button', { name:'Je confirme bientôt' }).getAttribute('aria-pressed')!=='true')
+      findings.push({size:size.id,kind:'rsvp-selection-failed'});
+    await page.getByRole('button', { name:'Parcours', exact:true }).click();
+    if (!await page.getByText('Ajouter une étape de vie').count())
+      findings.push({size:size.id,kind:'journey-tab-missing'});
+    await page.getByRole('button', { name:'Mes données' }).click();
+    const downloadPromise=page.waitForEvent('download');
+    await page.getByRole('button', { name:'Télécharger mes données' }).click();
+    const download=await downloadPromise;
+    try {
+      const data=JSON.parse(await readFile(await download.path(),'utf8'));
+      if (download.suggestedFilename()!=='ripplecircle-mes-donnees.json'
+        || data.account.first!=='Profil QA'||data.account.rsvp!=='maybe'
+        || Object.hasOwn(data.account,'theme')) {
+        findings.push({size:size.id,kind:'account-export-invalid'});
+      }
+    } catch {findings.push({size:size.id,kind:'account-export-unreadable'});}
+    await page.getByRole('button', { name:'Rétablir le profil de démonstration' }).click();
+    await page.getByRole('button', { name:'Annuler' }).click();
+    if (!await page.getByText('Profil QA', {exact:false}).count())
+      findings.push({size:size.id,kind:'account-reset-cancel-failed'});
+    await page.getByRole('button', { name:'Rétablir le profil de démonstration' }).click();
+    await page.getByRole('button', { name:'Oui, remplacer' }).click();
+    await page.getByRole('button', { name:'Profil', exact:true }).click();
+    if (await page.getByLabel('Prénom').inputValue()!=='Antoine')
+      findings.push({size:size.id,kind:'account-reset-failed'});
+    if (['desktop-1600','mobile-390'].includes(size.id)){
+      await page.waitForTimeout(2750); // capture the settled account, not a transient reset toast
+      await page.evaluate(() => scrollTo(0,0));
+      await page.screenshot({path:OUTPUT+'/'+size.id+'-account.png',fullPage:true,animations:'disabled',timeout:15000});
+    }
+    if(size.id==='mobile-390'){
+      await page.evaluate(()=>{
+        const key='regie.account.v2';
+        const saved=JSON.parse(localStorage.getItem(key));
+        saved.theme='night';saved.first='Personne QA';saved.rsvp='no';
+        localStorage.setItem(key,JSON.stringify(saved));
+      });
+      await page.reload();
+      try {
+        await page.waitForFunction(()=>{
+          const v=JSON.parse(localStorage.getItem('regie.account.v2'));
+          return v.first==='Personne QA'&&v.rsvp==='no'&&!Object.hasOwn(v,'theme');
+        },null,{timeout:6000});
+      } catch {findings.push({size:size.id,kind:'legacy-night-migration-failed'});}
+      const rootBackground=await page.locator('.ripple-app').evaluate(el=>getComputedStyle(el).backgroundColor);
+      if(rootBackground!=='rgb(255, 255, 255)') findings.push({size:size.id,kind:'not-light-after-migration',color:rootBackground});
+    }
     await page.getByRole('button', { name: 'Retour au Ripple' }).click();
     await page.locator('.ripple-watch-column').waitFor();
-    if (size.id === 'mobile-390') {
-      await page.getByRole('button', { name: 'Compte', exact: true }).click();
-      await page.getByRole('button', { name: /Affichage/ }).click();
-      await page.getByRole('button', { name: /Mode nuit/ }).click();
-      await page.getByRole('button', { name: 'Retour au Ripple' }).click();
-      await page.waitForTimeout(2800); // ne pas capturer le toast temporaire
-      await page.screenshot({ path: OUTPUT + '/mobile-390-night.png', fullPage: true, animations: 'disabled', timeout: 15000 });
-    }
     console.log('VISUAL_QA ' + JSON.stringify({ id: size.id, ...result, pageErrors }));
     await context.close();
   }
   await writeFile(OUTPUT + '/findings.json', JSON.stringify({ findings }, null, 2));
   console.log('VISUAL_FINDINGS ' + JSON.stringify(findings));
-  if (findings.some(x => ['console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed'].includes(x.kind))) {
+  if (findings.some(x => ['console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration'].includes(x.kind))) {
     process.exitCode = 1;
   }
 } finally {

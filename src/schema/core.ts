@@ -295,7 +295,6 @@ export interface AccountProfile {
   phone: string;
   avatarUrl: string;
   contactVisible: boolean;
-  theme: 'day' | 'night';
   rsvp: Rsvp;
   journey: JourneyStep[];
 }

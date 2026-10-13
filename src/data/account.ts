@@ -1,6 +1,5 @@
 import type { Interest, Sector } from './networking';
 
-export type AppTheme = 'day' | 'night';
 export type RSVPStatus = 'yes' | 'no' | 'maybe';
 export type MealChoice = 'poisson' | 'volaille' | 'vegetarien';
 export type JourneyKind = 'naissance' | 'etudes' | 'diplome' | 'travail' | 'personnel' | 'autre';
@@ -29,7 +28,6 @@ export interface AccountState {
   phone: string;
   avatarUrl: string;
   contactVisible: boolean;
-  theme: AppTheme;
   rsvp: RSVPStatus;
   partySize: number;
   meal: MealChoice;
@@ -53,7 +51,6 @@ export const INITIAL_ACCOUNT: AccountState = {
   phone: '+33 6 12 34 56 78',
   avatarUrl: 'https://i.pravatar.cc/240?img=8',
   contactVisible: true,
-  theme: 'day',
   rsvp: 'yes',
   partySize: 2,
   meal: 'poisson',
@@ -103,3 +100,13 @@ export const INITIAL_ACCOUNT: AccountState = {
     }
   ]
 };
+/** Remove the obsolete theme preference without touching user profile fields. */
+export function migrateAccountLightOnly(value: AccountState & { theme?: unknown }): AccountState {
+  const copy = { ...value };
+  delete copy.theme;
+  return copy;
+}
+export function freshDemoAccount(): AccountState {
+  return { ...INITIAL_ACCOUNT, interests: [...INITIAL_ACCOUNT.interests],
+    journey: INITIAL_ACCOUNT.journey.map(item => ({ ...item })) };
+}
