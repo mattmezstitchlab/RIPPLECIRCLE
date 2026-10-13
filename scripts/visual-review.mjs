@@ -105,6 +105,45 @@ try {
     if (await page.locator('.ripple-root-chain li').count() !== 5) findings.push({size:size.id,kind:'root-chain-missing'});
     await hero.getByRole('button',{name:'Fermer'}).click();
     if (await page.locator('.ripple-demo-explorer').count()) findings.push({size:size.id,kind:'close-simulation-failed'});
+    // V4 — trois nouveaux outils réellement interactifs sur données fictives.
+    const toolsNav = page.locator('.ripple-v4-nav');
+    if (await toolsNav.getByRole('button').count() !== 3) findings.push({ size:size.id, kind:'v4-toolbar-missing' });
+    await toolsNav.getByRole('button', { name: 'Impacts cachés' }).click();
+    if (await page.locator('.ripple-v4-impacts li').count() !== 7) findings.push({ size:size.id, kind:'v4-indirect-graph-failed' });
+    if (!await page.getByText('Hypothèse', { exact:true }).count()) findings.push({ size:size.id, kind:'v4-evidence-missing' });
+    if (['desktop-1600', 'mobile-390'].includes(size.id)) {
+      await page.screenshot({ path: OUTPUT + '/' + size.id + '-indirect.png', fullPage:true, animations:'disabled', timeout:15000 });
+    }
+    await toolsNav.getByRole('button', { name: 'Répartir les actions' }).click();
+    if (await page.locator('.ripple-v4-assignment').count() !== 3) findings.push({ size:size.id, kind:'v4-action-drafts-failed' });
+    await page.locator('.ripple-v4-assignment .ripple-v4-ready').first().click();
+    if (!await page.locator('.ripple-v4-ready[aria-pressed="true"]').count()) findings.push({ size:size.id, kind:'v4-local-action-confirmation-failed' });
+    if (['desktop-1600', 'mobile-390'].includes(size.id)) {
+      await page.screenshot({ path: OUTPUT + '/' + size.id + '-dispatch.png', fullPage:true, animations:'disabled', timeout:15000 });
+    }
+    await toolsNav.getByRole('button', { name: 'Rejouer' }).click();
+    if (await page.locator('.ripple-v4-frame').count() !== 7) findings.push({ size:size.id, kind:'v4-replay-frames-failed' });
+    await page.locator('.ripple-v4-frame').nth(1).click();
+    try {
+      await page.waitForFunction(
+        () => document.querySelector('[data-testid="explored-time"]')?.textContent?.trim() === '21:08',
+        null, { timeout: 4000 }
+      );
+    } catch { findings.push({ size:size.id, kind:'v4-replay-dial-unsynced' }); }
+    await page.getByRole('button',{name:'Revenir au début'}).click();
+    await page.getByRole('button',{name:'Lancer le rejeu'}).click();
+    try {
+      await page.waitForFunction(
+        () => document.querySelector('.ripple-v4-frame-counter')?.textContent?.trim() !== '1/7',
+        null, { timeout:5000 }
+      );
+    } catch { findings.push({ size:size.id, kind:'v4-replay-autoplay-failed' }); }
+    await page.getByRole('button',{name:'Mettre le rejeu en pause'}).click();
+    if (['desktop-1600', 'mobile-390'].includes(size.id)) {
+      await page.screenshot({ path: OUTPUT + '/' + size.id + '-replay.png', fullPage:true, animations:'disabled', timeout:15000 });
+    }
+    await toolsNav.getByRole('button', { name: 'Rejouer' }).click();
+    if (await page.locator('.ripple-v4-frames').count()) findings.push({ size:size.id, kind:'v4-close-replay-failed' });
     const nav = page.getByRole('button', { name: 'Musique' });
     await nav.click();
     if (!page.url().includes('#playlist')) findings.push({ size: size.id, kind: 'navigation-failed' });
@@ -125,7 +164,7 @@ try {
   }
   await writeFile(OUTPUT + '/findings.json', JSON.stringify({ findings }, null, 2));
   console.log('VISUAL_FINDINGS ' + JSON.stringify(findings));
-  if (findings.some(x => ['console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed'].includes(x.kind))) {
+  if (findings.some(x => ['console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed'].includes(x.kind))) {
     process.exitCode = 1;
   }
 } finally {

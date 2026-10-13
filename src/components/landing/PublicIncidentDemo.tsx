@@ -11,7 +11,7 @@ interface Props {
   onSelectPlan: (id: RepairId | null) => void;
 }
 export const PublicIncidentDemo: React.FC<Props> = ({mode,delay,selectedPlan,onDelay,onMode,onSelectPlan}) => {
-  if (mode === 'observe') return null;
+  if (mode !== 'simulate' && mode !== 'trace' && mode !== 'repair') return null;
   const result = simulateDelay(delay,selectedPlan ?? undefined);
   const chain = publicRootChain();
   return (

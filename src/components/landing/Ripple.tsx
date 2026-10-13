@@ -41,6 +41,7 @@ import { AudioPreview } from './AudioPreview';
 import { ClockDial } from './ClockDial';
 import { InstantInspector } from './InstantInspector';
 import { PublicIncidentDemo } from './PublicIncidentDemo';
+import { PublicAftermathDemo } from './PublicAftermathDemo';
 import { type PublicMode, type RepairId } from '../../utils/publicSimulation';
 import { angleAtMinute, minuteAtAngle, momentAt, causalDemoLinks, rolesForPublicIncident, shouldShowPublicCascade, START_MINUTE, END_MINUTE } from '../../utils/publicTimeline';
 import { Scene } from '../../data/orchestra';
@@ -1572,6 +1573,8 @@ export const Ripple: React.FC<RippleProps> = ({
           >
             <PublicIncidentDemo mode={publicMode} delay={publicDelay} selectedPlan={publicPlan}
               onDelay={setPublicDelay} onMode={setPublicMode} onSelectPlan={setPublicPlan}/>
+            <PublicAftermathDemo mode={publicMode} delay={publicDelay} selectedPlan={publicPlan}
+              onMode={setPublicMode} onMinute={chooseInstant}/>
             {track && <AudioPreview key={track.id} track={track} onLevel={onAudioLevel}/>}
             <details className="ripple-context-fold">
               <summary>Fiche complète de la sélection</summary>

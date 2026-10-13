@@ -6,7 +6,7 @@
 import { DAY_MOMENTS } from '../data/dayOf';
 import { minutesFrom17ToTime, timeToMinutesFrom17 } from './time';
 
-export type PublicMode = 'observe' | 'simulate' | 'trace' | 'repair';
+export type PublicMode = 'observe' | 'simulate' | 'trace' | 'repair' | 'indirect' | 'dispatch' | 'replay';
 export type RepairId = 'buffer' | 'service' | 'key-moment';
 
 export interface DemoAdjustment {
