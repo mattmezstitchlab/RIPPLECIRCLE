@@ -14,7 +14,9 @@ import {
   Volume2,
   VolumeX,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Scan,
+  SlidersHorizontal
 } from 'lucide-react';
 import {
   INTERESTS,
@@ -45,6 +47,7 @@ import { PublicIncidentDemo } from './PublicIncidentDemo';
 import { PublicAftermathDemo } from './PublicAftermathDemo';
 import { type PublicMode, type RepairId } from '../../utils/publicSimulation';
 import { angleAtMinute, minuteAtAngle, momentAt, causalDemoLinks, rolesForPublicIncident, shouldShowPublicCascade, START_MINUTE, END_MINUTE } from '../../utils/publicTimeline';
+import { FRAME_LABELS, FRAME_DESCRIPTIONS, frameGeometry, nextDialFrame, type DialFrame } from '../../utils/dialFraming';
 import { Scene } from '../../data/orchestra';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { useReactiveOrchestra } from '../../engine/orchestra/useReactiveOrchestra';
@@ -258,6 +261,8 @@ export const Ripple: React.FC<RippleProps> = ({
   const [publicMode, setPublicMode] = useState<PublicMode>('observe');
   const [publicDelay, setPublicDelay] = useState(10);
   const [publicPlan, setPublicPlan] = useState<RepairId | null>(null);
+  const [frameMode, setFrameMode] = useState<DialFrame>('full');
+  const [frameSectorAngle, setFrameSectorAngle] = useState(angleAtMinute(timeToMinutesFrom17('21:08')));
   const viewMode = publicMode === 'observe' ? 'explore' : publicMode === 'replay' ? 'replay' : 'simulate';
 
   // Per-instance unique id for SVG clipPaths (avoids collisions if multiple Ripple instances mount).
@@ -415,6 +420,7 @@ export const Ripple: React.FC<RippleProps> = ({
     setFollowDemo(false);
     setTurning(false);
     setExploreMinute(minute);
+    focusSector(angleAtMinute(minute));
     setFocus({ kind: 'moment', id: momentAt(minute).id });
   };
 
@@ -423,17 +429,18 @@ export const Ripple: React.FC<RippleProps> = ({
     setTurning(false);
     setFocus(f);
     if (f.kind === 'person') {
+      focusSector(ANGLE[f.id]);
       setAngle(ANGLE[f.id]);
       setRelationPulse((n) => n + 1);
     } else if (f.kind === 'moment') {
       const selected = DAY_MOMENTS.find(m => m.id === f.id);
-      if (selected) { setFollowDemo(false); setExploreMinute(timeToMinutesFrom17(selected.at)); }
+      if (selected) { setFollowDemo(false); setExploreMinute(timeToMinutesFrom17(selected.at)); focusSector(angleAtMinute(timeToMinutesFrom17(selected.at))); }
     } else if (f.kind === 'track') {
       const selected = tracks.find(t => t.id === f.id);
-      if (selected) { setFollowDemo(false); setExploreMinute(selected.start); }
+      if (selected) { setFollowDemo(false); setExploreMinute(selected.start); focusSector(angleAtMinute(selected.start)); }
     } else if (f.kind === 'memory') {
       const selected = memories.find(m => m.id === f.id);
-      if (selected) { setFollowDemo(false); setExploreMinute(selected.t); }
+      if (selected) { setFollowDemo(false); setExploreMinute(selected.t); focusSector(angleAtMinute(selected.t)); }
     }
   };
 
@@ -543,8 +550,27 @@ export const Ripple: React.FC<RippleProps> = ({
 
   const resetView = () => {
     sfx.playNodeClick();
+    setFrameMode('full');
     setZoom(1.0);
     setPan({ x: 0, y: 0 });
+  };
+  const focusSector = (a: number) => {
+    setFrameSectorAngle(a);
+    if (frameMode === 'quarter') {
+      const g = frameGeometry('quarter', a);
+      setZoom(g.zoom);
+      setPan(g.pan);
+    }
+  };
+  const cycleFrame = (angleOverride?: number) => {
+    const next = nextDialFrame(frameMode);
+    const a = angleOverride ?? frameSectorAngle;
+    const geometry = frameGeometry(next, a);
+    setFrameMode(next);
+    setFrameSectorAngle(a);
+    setZoom(geometry.zoom);
+    setPan(geometry.pan);
+    sfx.playNodeClick();
   };
 
   const angleFromEvent = (e: React.PointerEvent) => {
@@ -623,7 +649,7 @@ export const Ripple: React.FC<RippleProps> = ({
   }
 
   return (
-    <main className="max-w-[1680px] mx-auto px-4 sm:px-6 pt-3 pb-5">
+    <main className="ripple-v7-main max-w-[1680px] mx-auto px-4 sm:px-6 pt-3 pb-5">
       <div className="ripple-v6-topbar" aria-label="Navigation principale de RIPPLECIRCLE">
         <div className="ripple-v6-intro">
           <p className="ripple-public-kicker">RIPPLECIRCLE · Mariage fictif</p>
@@ -650,8 +676,8 @@ export const Ripple: React.FC<RippleProps> = ({
         </div>
       </div>
       {/* Un instrument central : les vues se choisissent autour du cadran. */}
-      <div className="ripple-stage">
-        <div className="ripple-watch-column">
+      <div className="ripple-stage ripple-v7-stage" data-framing={frameMode}>
+        <div className="ripple-watch-column ripple-v7-watch-column" data-framing={frameMode}>
           <details className="ripple-v6-layers">
             <summary className="ripple-v6-layers-summary">
               <Layers className="w-3.5 h-3.5" />
@@ -685,13 +711,22 @@ export const Ripple: React.FC<RippleProps> = ({
             })}
           </nav>
           </details>
-          <div className="ripple-watch-wrap">
+          <div className={`ripple-watch-wrap ripple-v7-watch--${frameMode}`} data-framing={frameMode}>
         <div
           className="relative w-full mx-auto aspect-square outline-none focus-visible:ring-2 focus-visible:ring-[#0066cc]/50 rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.08)]"
           style={{ background: 'var(--ripple-surface, #ffffff)' }}
           tabIndex={0}
           role="application"
-          aria-label={`Cercle Ripple 2D — couche active : ${activeLayer}. Flèches gauche et droite pour naviguer, plus et moins pour zoomer.`}
+          aria-label={`Cercle Ripple 2D — couche active : ${activeLayer}. Flèches pour explorer, plus et moins pour zoomer, Entrée pour changer le cadrage.`}
+          onDoubleClick={(e) => {
+            const rect = svgRef.current?.getBoundingClientRect();
+            if (!rect) {cycleFrame();return;}
+            const actualSpan = (SIZE + 60) / zoom;
+            const x = C - actualSpan/2 + pan.x + (e.clientX-rect.left) / rect.width * actualSpan;
+            const y = C - actualSpan/2 + pan.y + (e.clientY-rect.top) / rect.height * actualSpan;
+            const a = normDeg(Math.atan2(y-C,x-C)*180/Math.PI+90);
+            cycleFrame(a);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'ArrowRight') {
               e.preventDefault();
@@ -709,6 +744,9 @@ export const Ripple: React.FC<RippleProps> = ({
             } else if (e.key === '0') {
               e.preventDefault();
               resetView();
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              cycleFrame();
             }
           }}
         >
@@ -721,6 +759,7 @@ export const Ripple: React.FC<RippleProps> = ({
             onPointerDown={(e) => {
               const p = angleFromEvent(e);
               if (!p) return;
+              focusSector(p.a);
               if (p.d >= R.hours - 18 && p.d <= R.hours + 18) {
                 e.preventDefault();
                 draggingTime.current = true;
@@ -1313,9 +1352,22 @@ export const Ripple: React.FC<RippleProps> = ({
 
         </div>
           </div>
-        <details className="ripple-v6-watch-settings">
-          <summary>Réglages du cercle</summary>
-          <div className="ripple-watch-controls" role="toolbar" aria-label="Commandes du cadran">
+        </div>
+
+        {/* Une seule commande répétéé pour entier → demi → quart, plus réglages fixes en bas. */}
+        <nav className="ripple-v7-dock" aria-label="Cadrage et réglages du cercle">
+          <button type="button" className="ripple-v7-frame-btn" onClick={() => cycleFrame()}
+            aria-label={`Changer le cadrage du cercle : ${FRAME_LABELS[frameMode]}`}
+            title="Un clic : mode suivant. Double-clic sur le cercle : cadrer le secteur touché.">
+            <Scan className="w-4 h-4" aria-hidden="true"/>
+            <span>{FRAME_LABELS[frameMode]}</span>
+          </button>
+          <span className="ripple-v7-dock-status" role="status" aria-live="polite">
+            {frameMode === 'quarter' ? frameGeometry(frameMode, frameSectorAngle).quarter : FRAME_DESCRIPTIONS[frameMode]}
+          </span>
+          <details className="ripple-v6-watch-settings ripple-v7-dock-menu">
+            <summary aria-label="Ouvrir les réglages du cadran"><SlidersHorizontal className="w-4 h-4"/> Réglages</summary>
+            <div className="ripple-watch-controls" role="toolbar" aria-label="Commandes du cadran">
           <button type="button" className="ripple-circle-control" aria-pressed={relationsVisible} aria-label={relationsVisible ? 'Masquer les relations' : 'Afficher les relations'} title="Connexions" onClick={() => setRelationsVisible(v => !v)}>
             <Network className="w-4 h-4" />
           </button>
@@ -1328,9 +1380,9 @@ export const Ripple: React.FC<RippleProps> = ({
           <button type="button" className="ripple-circle-control" onClick={() => setAudioMuted(m => !m)} aria-label={audioMuted ? 'Activer les effets sonores' : 'Couper les effets sonores'} title="Effets sonores">
             {audioMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
-          </div>
-        </details>
-        </div>
+            </div>
+          </details>
+        </nav>
 
         {/* Une seule colonne : le contexte visible et les outils avancés repliés. */}
         <aside className="ripple-inspector" aria-label="Comprendre et agir">
