@@ -213,9 +213,8 @@ export const WeddingScore:React.FC=()=>{
               {PHASES.map((p,i)=>{
                 const r=RADII[i],active=p.id===phaseId,roles=phaseRoles(p.id);
                 const items=segmentsOf(segments,p.id);
-                const markerTimes:Array<number>=[];
-                for(let t=p.start;t<=p.end;t+=60)markerTimes.push(t);
-                if(!markerTimes.includes(p.end))markerTimes.push(p.end);
+                const markerTimes=active&&p.start+60<p.end
+                  ? [p.start,p.start+60,p.end] : [p.start,p.end];
                 return <g key={p.id} data-phase={p.id}>
                   <circle cx={C} cy={C} r={r} fill="none" stroke={p.color} strokeWidth={active?35:32} opacity={active?.18:.09}/>
                   <circle cx={C} cy={C} r={r} fill="none" stroke={p.color} strokeWidth={active?3:1.5} opacity={active?1:.42}/>
@@ -228,8 +227,9 @@ export const WeddingScore:React.FC=()=>{
                       opacity={active?1:.7} className="ripple-score-arc"
                       onClick={()=>{selectRole(role.id,p.id);setSelectedId(seg.id);}}/>;
                   })}
-                  {markerTimes.filter((_,j)=>j===0||j===markerTimes.length-1||j%2===0).map(t=>{
-                    const point=rpos(r,minuteAngle(t,p));
+                  {markerTimes.map(t=>{
+                    const hourAngle=t===p.start?-90:t===p.end?90:minuteAngle(t,p);
+                    const point=rpos(r,hourAngle);
                     return <text key={t} x={point.x} y={point.y+4} fill="currentColor"
                       textAnchor="middle" fontSize={active?12:10} fontWeight={active?800:650}
                       opacity={active?.92:.54}>{timeLabel(t)}</text>;
@@ -246,8 +246,6 @@ export const WeddingScore:React.FC=()=>{
                       <title>{role.label} · {p.label} · sélectionner et écouter</title>
                     </g>;
                   })}
-                  {(()=>{const a=rpos(r,266);return <text x={a.x} y={a.y} fontSize={active?13:11} fill="currentColor" fontWeight="800"
-                    textAnchor="middle" dominantBaseline="central">{p.label}</text>;})()}
                 </g>;
               })}
               <circle cx={C} cy={C} r="114" fill="#fff" opacity=".97"/>
