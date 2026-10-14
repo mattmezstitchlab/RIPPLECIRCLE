@@ -109,12 +109,16 @@ try {
       findings.push({size:size.id,kind:'v9-clip-editor-missing'});
     const photoTrack=page.locator('[data-testid="score-track-photo"]');
     const originalClip=photoTrack.locator('[data-segment-id]').first();
+    await originalClip.scrollIntoViewIfNeeded();
     const originalLabel=await originalClip.getAttribute('aria-label');
     const clipBounds=await originalClip.boundingBox();
-    if(clipBounds){
-      await page.mouse.move(clipBounds.x+16,clipBounds.y+clipBounds.height/2);
+    const laneBounds=await photoTrack.boundingBox();
+    if(clipBounds&&laneBounds){
+      const grabX=clipBounds.x+Math.min(18,clipBounds.width*.22);
+      const shift=laneBounds.width/12*1.15; // move >= one 15-min slot across all responsive sizes
+      await page.mouse.move(grabX,clipBounds.y+clipBounds.height/2);
       await page.mouse.down();
-      await page.mouse.move(clipBounds.x-22,clipBounds.y+clipBounds.height/2,{steps:7});
+      await page.mouse.move(grabX-shift,clipBounds.y+clipBounds.height/2,{steps:7});
       await page.mouse.up();
       const movedLabel=await originalClip.getAttribute('aria-label');
       if(originalLabel===movedLabel)
