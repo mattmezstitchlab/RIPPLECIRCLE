@@ -107,6 +107,20 @@ try {
       findings.push({size:size.id,kind:'v9-add-clip-failed'});
     if(!await page.locator('[data-testid="score-segment-editor"]').count())
       findings.push({size:size.id,kind:'v9-clip-editor-missing'});
+    const photoTrack=page.locator('[data-testid="score-track-photo"]');
+    const originalClip=photoTrack.locator('[data-segment-id]').first();
+    const originalLabel=await originalClip.getAttribute('aria-label');
+    const clipBounds=await originalClip.boundingBox();
+    if(clipBounds){
+      await page.mouse.move(clipBounds.x+16,clipBounds.y+clipBounds.height/2);
+      await page.mouse.down();
+      await page.mouse.move(clipBounds.x-22,clipBounds.y+clipBounds.height/2,{steps:7});
+      await page.mouse.up();
+      const movedLabel=await originalClip.getAttribute('aria-label');
+      if(originalLabel===movedLabel)
+        findings.push({size:size.id,kind:'v9-drag-clip-unchanged'});
+    } else findings.push({size:size.id,kind:'v9-drag-clip-not-found'});
+
     const beforeSave=await page.evaluate(()=>JSON.parse(localStorage.getItem('ripple.v9.score.segments')||'[]').length);
     await page.reload({waitUntil:'domcontentloaded'});
     await page.locator('[data-testid="wedding-score"]').waitFor();
@@ -389,7 +403,7 @@ try {
   }
   await writeFile(OUTPUT + '/findings.json', JSON.stringify({ findings }, null, 2));
   console.log('VISUAL_FINDINGS ' + JSON.stringify(findings));
-  if (findings.some(x => ['v9-phase-rings-missing','v9-context-panel-duplicated','v9-photo-click-not-zoomed','v9-photo-not-in-inspector','v9-add-clip-failed','v9-clip-editor-missing','v9-score-not-persistent','v9-phase-track-filter-missing','v9-score-horizontal-overflow','v9-demo-reset-failed','v8-not-date-first','v8-calendar-months-missing','v8-premature-availability','v8-calendar-days-missing','v8-availability-misrepresented','v8-request-mail-incorrect','v8-booking-overflow','v7-frame-button-missing','v7-bottom-dock-not-fixed','v7-dock-overlaps-full-circle','v7-wrong-default-frame','v7-half-missing-crop','v7-quarter-zoom-invalid','v7-cycle-not-reversible','v7-doubleclick-framing-failed','v6-modebar-missing','v6-not-three-modes','v6-layers-open-at-rest','v6-verbose-inspector-still-shown','v6-details-open-at-rest', 'v6-settings-open-at-rest', 'v6-hidden-layers-visible', 'v6-hidden-controls-visible', 'console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
+  if (findings.some(x => ['v9-phase-rings-missing','v9-context-panel-duplicated','v9-photo-click-not-zoomed','v9-photo-not-in-inspector','v9-add-clip-failed','v9-clip-editor-missing','v9-drag-clip-unchanged','v9-drag-clip-not-found','v9-score-not-persistent','v9-phase-track-filter-missing','v9-score-horizontal-overflow','v9-demo-reset-failed','v8-not-date-first','v8-calendar-months-missing','v8-premature-availability','v8-calendar-days-missing','v8-availability-misrepresented','v8-request-mail-incorrect','v8-booking-overflow','v7-frame-button-missing','v7-bottom-dock-not-fixed','v7-dock-overlaps-full-circle','v7-wrong-default-frame','v7-half-missing-crop','v7-quarter-zoom-invalid','v7-cycle-not-reversible','v7-doubleclick-framing-failed','v6-modebar-missing','v6-not-three-modes','v6-layers-open-at-rest','v6-verbose-inspector-still-shown','v6-details-open-at-rest', 'v6-settings-open-at-rest', 'v6-hidden-layers-visible', 'v6-hidden-controls-visible', 'console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
     process.exitCode = 1;
   }
 } finally {
