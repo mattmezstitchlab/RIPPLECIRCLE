@@ -49,7 +49,10 @@ export const SaxBookingLanding:React.FC=()=>{
             <h1>Votre date. Votre musique.<br/><em>Votre grand jour.</em></h1>
             <p className="ripple-booking-subtitle">Choisissez la date de votre mariage. Découvrez comment votre journée pourrait prendre vie autour d’une prestation saxophone.</p>
           </div>
-          <a href="#explore" className="ripple-booking-explore">Découvrir le cadran <ArrowRight size={17}/></a>
+          <div className="ripple-booking-hero-links">
+            <a href="#score" className="ripple-booking-explore">Composer votre journée <Music2 size={17}/></a>
+            <a href="#explore" className="ripple-booking-explore">Découvrir le cadran <ArrowRight size={17}/></a>
+          </div>
         </header>
 
         <div className="ripple-booking-content">
