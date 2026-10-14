@@ -113,7 +113,7 @@ try {
     const afterSave=await page.evaluate(()=>JSON.parse(localStorage.getItem('ripple.v9.score.segments')||'[]').length);
     if(beforeSave<6 || beforeSave!==afterSave)
       findings.push({size:size.id,kind:'v9-score-not-persistent',beforeSave,afterSave});
-    await page.getByRole('button',{name:'Cérémonie',exact:true}).first().click();
+    await page.locator('.ripple-score-legend button').filter({hasText:'Cérémonie'}).click();
     if(!await page.locator('[data-testid="score-track-officiant"]').count())
       findings.push({size:size.id,kind:'v9-phase-track-filter-missing'});
     const scoreOverflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
