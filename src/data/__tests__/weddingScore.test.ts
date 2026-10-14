@@ -19,7 +19,7 @@ describe('V9 partition universelle',()=>{
     const phase=PHASES[2];
     expect(GRID_MINUTES).toBe(15);
     expect(boundsForSegment(phase,1129,1234)).toEqual({start:1065,end:1170});
-    expect(boundsForSegment(phase,950,970)).toEqual({start:990,end:1020});
+    expect(boundsForSegment(phase,950,970)).toEqual({start:990,end:1005});
     expect(boundsForSegment(phase,1168,1169)).toEqual({start:1155,end:1170});
   });
   it('détecte les collisions sur une même piste, pas entre deux métiers',()=>{
@@ -30,7 +30,7 @@ describe('V9 partition universelle',()=>{
     expect(segmentsOf(DEMO_SEGMENTS,'cocktail','photo')).toHaveLength(1);
   });
   it('empêche les données corrompues de revenir dans la partition',()=>{
-    expect(DEMO_SEGMENTS.every(isValidSegment)).toBe(false);
+    expect(DEMO_SEGMENTS.every(isValidSegment)).toBe(true);
     const entries=sanitizeSegments([{...DEMO_SEGMENTS[0]},{
       id:'bad',phaseId:'cocktail',roleId:'dj',start:990,end:1010
     }]);

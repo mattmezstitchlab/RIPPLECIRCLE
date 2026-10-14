@@ -31,7 +31,7 @@ export const ROLES:readonly Role[]=[
 export const DEMO_SEGMENTS:readonly Segment[]=[
   {id:'demo-photo-ceremony',phaseId:'ceremony',roleId:'photo',start:855,end:975},
   {id:'demo-photo-cocktail',phaseId:'cocktail',roleId:'photo',start:1020,end:1125},
-  {id:'demo-music-cocktail',phaseId:'cocktail',roleId:'music',start:1040,end:1140},
+  {id:'demo-music-cocktail',phaseId:'cocktail',roleId:'music',start:1035,end:1140},
   {id:'demo-catering-dinner',phaseId:'dinner',roleId:'catering',start:1185,end:1335},
   {id:'demo-dj-evening',phaseId:'evening',roleId:'dj',start:1380,end:1530}
 ];
