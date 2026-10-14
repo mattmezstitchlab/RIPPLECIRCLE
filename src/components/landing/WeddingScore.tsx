@@ -1,9 +1,9 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowLeft,ArrowRight,Camera,Check,Clock3,Music2,Pause,Play,Plus,RotateCcw,Trash2,Volume2,VolumeX} from 'lucide-react';
+import {ArrowRight,Camera,Check,Clock3,Pause,Play,Plus,RotateCcw,Trash2,Volume2,VolumeX} from 'lucide-react';
 import {sfx} from '../../utils/audio';
 import {usePersistentState} from '../../hooks/usePersistentState';
 import {
-  PHASES,ROLES,DEMO_SEGMENTS,GRID_MINUTES,boundsForSegment,getPhase,getRole,
+  PHASES,DEMO_SEGMENTS,GRID_MINUTES,boundsForSegment,getPhase,getRole,
   phaseRoles,isValidSegment,overlaps,sanitizeSegments,segmentsOf,snapMinute,timeLabel,
   type Phase,type PhaseId,type Role,type RoleId,type Segment
 } from '../../data/weddingScore';
@@ -353,6 +353,7 @@ export const WeddingScore:React.FC=()=>{
                 <div className="ripple-score-track-track ripple-score-track-lane"
                   data-testid={'score-track-'+role.id}
                   role="group" aria-label={'Piste '+role.label}
+                  style={{backgroundSize:(100/((phase.end-phase.start)/GRID_MINUTES))+'% 100%',backgroundImage:'linear-gradient(to right,transparent calc(100% - 1px),rgba(0,0,0,.08) calc(100% - 1px))'}}
                   onPointerDown={e=>onTrackDown(e,role)}
                   onPointerMove={onTrackMove} onPointerUp={onTrackEnd} onPointerCancel={onTrackCancel}>
                   {visible.map(seg=>{
