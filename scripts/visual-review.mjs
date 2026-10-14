@@ -82,6 +82,52 @@ try {
     }
     const bookingOverflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
     if(bookingOverflow>2)findings.push({size:size.id,kind:'v8-booking-overflow',pixels:bookingOverflow});
+    // V9 — phase rings, role sonification, zoom and a real editable arrangement.
+    await page.getByRole('link',{name:'Composer votre journée'}).click();
+    await page.locator('[data-testid="wedding-score"]').waitFor();
+    const circle=page.locator('[data-testid="phase-circle"]');
+    if(await circle.locator('g[data-phase]').count()!==5)
+      findings.push({size:size.id,kind:'v9-phase-rings-missing'});
+    if(await page.locator('.ripple-score-inspector').count()!==1)
+      findings.push({size:size.id,kind:'v9-context-panel-duplicated'});
+    if(['desktop-1600','mobile-390'].includes(size.id)) {
+      await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
+      await page.screenshot({path:OUTPUT+'/'+size.id+'-v9-score-start.png',fullPage:true,animations:'disabled',timeout:15000});
+    }
+    await page.locator('[data-testid="role-dot-cocktail-photo"]').click();
+    const zoomBox=await circle.getAttribute('viewBox');
+    if(!zoomBox || Math.abs(Number(zoomBox.trim().split(/\s+/)[2])-470)>1)
+      findings.push({size:size.id,kind:'v9-photo-click-not-zoomed',zoomBox});
+    if(await page.locator('.ripple-score-selected h3').textContent()!=='Photographe')
+      findings.push({size:size.id,kind:'v9-photo-not-in-inspector'});
+    const previousCount=await page.locator('[data-testid="score-track-photo"] [data-segment-id]').count();
+    await page.locator('[data-testid="score-add-segment"]').click();
+    const newCount=await page.locator('[data-testid="score-track-photo"] [data-segment-id]').count();
+    if(newCount!==previousCount+1)
+      findings.push({size:size.id,kind:'v9-add-clip-failed'});
+    if(!await page.locator('[data-testid="score-segment-editor"]').count())
+      findings.push({size:size.id,kind:'v9-clip-editor-missing'});
+    const beforeSave=await page.evaluate(()=>JSON.parse(localStorage.getItem('ripple.v9.score.segments')||'[]').length);
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.locator('[data-testid="wedding-score"]').waitFor();
+    const afterSave=await page.evaluate(()=>JSON.parse(localStorage.getItem('ripple.v9.score.segments')||'[]').length);
+    if(beforeSave<6 || beforeSave!==afterSave)
+      findings.push({size:size.id,kind:'v9-score-not-persistent',beforeSave,afterSave});
+    await page.getByRole('button',{name:'Cérémonie',exact:true}).first().click();
+    if(!await page.locator('[data-testid="score-track-officiant"]').count())
+      findings.push({size:size.id,kind:'v9-phase-track-filter-missing'});
+    const scoreOverflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+    if(scoreOverflow>2)
+      findings.push({size:size.id,kind:'v9-score-horizontal-overflow',pixels:scoreOverflow});
+    await page.getByRole('button',{name:'Réinitialiser l’exemple'}).click();
+    const resetCount=await page.evaluate(()=>JSON.parse(localStorage.getItem('ripple.v9.score.segments')||'[]').length);
+    if(resetCount!==5) findings.push({size:size.id,kind:'v9-demo-reset-failed',resetCount});
+    if(['desktop-1600','mobile-390'].includes(size.id)) {
+      await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
+      await page.screenshot({path:OUTPUT+'/'+size.id+'-v9-score-selected.png',fullPage:true,animations:'disabled',timeout:15000});
+    }
+    await page.getByRole('link',{name:'Site Matt Mez Sax'}).click();
+    await page.locator('.ripple-booking-page').waitFor();
     await page.getByRole('link',{name:'Découvrir le cadran'}).click();
     await page.locator('.ripple-watch-column').waitFor({timeout:16000});
     await page.screenshot({ path: OUTPUT + '/' + size.id + '.png', fullPage: true, animations: 'disabled', timeout: 15000 });
@@ -343,7 +389,7 @@ try {
   }
   await writeFile(OUTPUT + '/findings.json', JSON.stringify({ findings }, null, 2));
   console.log('VISUAL_FINDINGS ' + JSON.stringify(findings));
-  if (findings.some(x => ['v8-not-date-first','v8-calendar-months-missing','v8-premature-availability','v8-calendar-days-missing','v8-availability-misrepresented','v8-request-mail-incorrect','v8-booking-overflow','v7-frame-button-missing','v7-bottom-dock-not-fixed','v7-dock-overlaps-full-circle','v7-wrong-default-frame','v7-half-missing-crop','v7-quarter-zoom-invalid','v7-cycle-not-reversible','v7-doubleclick-framing-failed','v6-modebar-missing','v6-not-three-modes','v6-layers-open-at-rest','v6-verbose-inspector-still-shown','v6-details-open-at-rest', 'v6-settings-open-at-rest', 'v6-hidden-layers-visible', 'v6-hidden-controls-visible', 'console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
+  if (findings.some(x => ['v9-phase-rings-missing','v9-context-panel-duplicated','v9-photo-click-not-zoomed','v9-photo-not-in-inspector','v9-add-clip-failed','v9-clip-editor-missing','v9-score-not-persistent','v9-phase-track-filter-missing','v9-score-horizontal-overflow','v9-demo-reset-failed','v8-not-date-first','v8-calendar-months-missing','v8-premature-availability','v8-calendar-days-missing','v8-availability-misrepresented','v8-request-mail-incorrect','v8-booking-overflow','v7-frame-button-missing','v7-bottom-dock-not-fixed','v7-dock-overlaps-full-circle','v7-wrong-default-frame','v7-half-missing-crop','v7-quarter-zoom-invalid','v7-cycle-not-reversible','v7-doubleclick-framing-failed','v6-modebar-missing','v6-not-three-modes','v6-layers-open-at-rest','v6-verbose-inspector-still-shown','v6-details-open-at-rest', 'v6-settings-open-at-rest', 'v6-hidden-layers-visible', 'v6-hidden-controls-visible', 'console-errors', 'horizontal-overflow', 'orbit-control-clipped', 'dial-inspector-overlap', 'header-controls', 'navigation-failed', 'account-failed', 'hero-missing', 'scenario-10-failed', 'scenario-18-failed', 'repair-options-missing', 'repair-selection-failed', 'root-chain-missing', 'close-simulation-failed', 'v4-toolbar-missing', 'v4-indirect-graph-failed', 'v4-evidence-missing', 'v4-action-drafts-failed', 'v4-local-action-confirmation-failed', 'v4-replay-frames-failed', 'v4-replay-dial-unsynced', 'v4-replay-autoplay-failed', 'v4-close-replay-failed', 'night-option-still-visible', 'account-tabs-invalid', 'account-tabs-clipped', 'rsvp-selection-failed', 'journey-tab-missing', 'account-export-invalid', 'account-export-unreadable', 'account-reset-cancel-failed', 'account-reset-failed', 'legacy-night-migration-failed', 'not-light-after-migration', 'v5-back-face-still-present', 'v5-impact-portraits-missing', 'v5-context-portraits-missing', 'v5-person-focus-missing', 'v5-people-layer-portrait-missing', 'v5-directory-portraits-missing'].includes(x.kind))) {
     process.exitCode = 1;
   }
 } finally {
