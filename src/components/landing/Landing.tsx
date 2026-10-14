@@ -4,14 +4,16 @@ import { useOrchestra } from '../../hooks/useOrchestra';
 import { Ripple, RippleLayer } from './Ripple';
 import { AccountPage } from './AccountPage';
 import { SaxBookingLanding } from './SaxBookingLanding';
+import { WeddingScore } from './WeddingScore';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { AccountState, INITIAL_ACCOUNT, migrateAccountLightOnly } from '../../data/account';
 
-type Page = RippleLayer | 'account' | 'booking';
+type Page = RippleLayer | 'account' | 'booking' | 'score';
 
 const readLayer = (): Page => {
   const hash = window.location.hash.replace(/^#/, '');
   if (!hash || hash === 'booking') return 'booking';
+  if (hash === 'score' || hash === 'partition') return 'score';
   if (hash === 'explore' || hash === 'instrument') return 'overview';
   if (hash === 'account' || hash === 'calendar' || hash === 'journey' || hash === 'day' || hash === 'memory' || hash === 'playlist' || hash === 'people') return hash;
   return 'booking';
@@ -45,6 +47,8 @@ export const Landing: React.FC = () => {
             <span className="font-bold text-[14px] sm:text-[16px] tracking-[0.01em]">{layer === 'booking' ? 'MATT MEZ SAX' : 'RIPPLECIRCLE'}</span>
             <span className="hidden sm:inline text-[11px] tracking-[0.08em] uppercase opacity-50">{layer === 'booking' ? 'Réservation · mariage' : 'Instrument causal · 2D'}</span>
           </a>
+          <div className="flex items-center gap-3">
+            <a href="#score" className="ripple-score-header-link">Partition <span aria-hidden="true">♫</span></a>
           <button
             type="button"
             onClick={() => { if (layer !== 'account') window.location.hash = 'account'; }}
@@ -54,6 +58,7 @@ export const Landing: React.FC = () => {
             <CircleUserRound className="w-4 h-4" />
             {layer === 'booking' ? 'Compte démo' : 'Compte'}
           </button>
+          </div>
         </div>
       </header>
 
@@ -70,6 +75,8 @@ export const Landing: React.FC = () => {
           />
         ) : layer === 'booking' ? (
           <SaxBookingLanding />
+        ) : layer === 'score' ? (
+          <WeddingScore />
         ) : (
           <Ripple
             activeLayer={layer}
